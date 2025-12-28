@@ -148,6 +148,25 @@ jobs:
             --function-name finEdSkywalker-api
           
           echo "Lambda function updated successfully!"
+          
+          # Verify Lambda configuration
+          echo "Verifying Lambda configuration..."
+          aws lambda get-function-configuration \
+            --function-name finEdSkywalker-api \
+            --query '{Runtime:Runtime,MemorySize:MemorySize,Timeout:Timeout,LastModified:LastModified}' \
+            --output json
+          
+          # Check if JWT_SECRET is set (don't print the actual value)
+          ENV_VARS=$(aws lambda get-function-configuration \
+            --function-name finEdSkywalker-api \
+            --query 'Environment.Variables' \
+            --output json)
+          
+          if echo "$ENV_VARS" | grep -q "JWT_SECRET"; then
+            echo "✅ JWT_SECRET is configured"
+          else
+            echo "⚠️ Warning: JWT_SECRET not found in Lambda environment variables"
+          fi
 
       - name: Get and Test API
         run: |
@@ -161,15 +180,39 @@ jobs:
             echo "API Gateway URL: $API_URL"
             echo "::notice title=API Gateway URL::$API_URL"
             
-            # Test health endpoint
-            sleep 5
+            # Test health endpoint with retries
             echo "Testing health endpoint..."
-            if curl -f -s "$API_URL/health" > /dev/null; then
-              echo "✅ Health check passed!"
-            else
-              echo "❌ Health check failed"
-              exit 1
-            fi
+            MAX_RETRIES=5
+            RETRY_COUNT=0
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+              
+              HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" "$API_URL/health")
+              
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ Health check passed!"
+                echo "Response: $(cat /tmp/response.txt)"
+                exit 0
+              else
+                echo "❌ Got HTTP $HTTP_CODE"
+                echo "Response: $(cat /tmp/response.txt)"
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                
+                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                  echo "Retrying in 5 seconds..."
+                  sleep 5
+                fi
+              fi
+            done
+            
+            echo "❌ Health check failed after $MAX_RETRIES attempts"
+            
+            # Show Lambda logs for debugging
+            echo "Recent Lambda logs:"
+            aws logs tail /aws/lambda/finEdSkywalker-api --since 5m --format short || true
+            
+            exit 1
           else
             echo "⚠️ Could not find API Gateway"
           fi
