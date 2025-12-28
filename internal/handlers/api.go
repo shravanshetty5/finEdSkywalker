@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/sshetty/finEdSkywalker/internal/auth"
 )
 
 // Response represents a standard API response
@@ -31,16 +32,26 @@ type CreateRequest struct {
 func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	log.Printf("Received request: %s %s", request.HTTPMethod, request.Path)
 
+	// Initialize user store on first request
+	auth.InitUserStore()
+
 	// Route based on path and method
 	switch {
+	// Public routes (no authentication required)
 	case request.Path == "/health" && request.HTTPMethod == "GET":
 		return handleHealth(request)
+	case request.Path == "/auth/login" && request.HTTPMethod == "POST":
+		return handleLogin(request)
+	case request.Path == "/auth/refresh" && request.HTTPMethod == "POST":
+		return handleRefreshToken(request)
+	
+	// Protected routes (authentication required)
 	case request.Path == "/api/items" && request.HTTPMethod == "GET":
-		return handleListItems(request)
+		return auth.RequireAuth(handleListItemsAuth)(request)
 	case request.Path == "/api/items" && request.HTTPMethod == "POST":
-		return handleCreateItem(request)
+		return auth.RequireAuth(handleCreateItemAuth)(request)
 	case strings.HasPrefix(request.Path, "/api/items/") && request.HTTPMethod == "GET":
-		return handleGetItem(request)
+		return auth.RequireAuth(handleGetItemAuth)(request)
 	default:
 		return notFound()
 	}
@@ -76,6 +87,12 @@ func handleListItems(request events.APIGatewayProxyRequest) (events.APIGatewayPr
 	return jsonResponse(200, resp)
 }
 
+// handleListItemsAuth is the authenticated version of handleListItems
+func handleListItemsAuth(request events.APIGatewayProxyRequest, authCtx *auth.AuthContext) (events.APIGatewayProxyResponse, error) {
+	log.Printf("User %s (%s) accessing items list", authCtx.Username, authCtx.UserID)
+	return handleListItems(request)
+}
+
 // handleCreateItem creates a new item
 func handleCreateItem(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	var createReq CreateRequest
@@ -104,6 +121,12 @@ func handleCreateItem(request events.APIGatewayProxyRequest) (events.APIGatewayP
 	return jsonResponse(201, resp)
 }
 
+// handleCreateItemAuth is the authenticated version of handleCreateItem
+func handleCreateItemAuth(request events.APIGatewayProxyRequest, authCtx *auth.AuthContext) (events.APIGatewayProxyResponse, error) {
+	log.Printf("User %s (%s) creating new item", authCtx.Username, authCtx.UserID)
+	return handleCreateItem(request)
+}
+
 // handleGetItem returns a single item by ID
 func handleGetItem(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	// Extract ID from path
@@ -126,6 +149,17 @@ func handleGetItem(request events.APIGatewayProxyRequest) (events.APIGatewayProx
 	}
 
 	return jsonResponse(200, resp)
+}
+
+// handleGetItemAuth is the authenticated version of handleGetItem
+func handleGetItemAuth(request events.APIGatewayProxyRequest, authCtx *auth.AuthContext) (events.APIGatewayProxyResponse, error) {
+	parts := strings.Split(request.Path, "/")
+	itemID := ""
+	if len(parts) >= 4 {
+		itemID = parts[3]
+	}
+	log.Printf("User %s (%s) accessing item %s", authCtx.Username, authCtx.UserID, itemID)
+	return handleGetItem(request)
 }
 
 // jsonResponse creates a successful JSON response

@@ -59,6 +59,10 @@ init-terraform: ## Initialize Terraform
 	cd terraform && terraform init
 	@echo "Terraform initialized"
 
+bootstrap: ## Bootstrap AWS infrastructure (S3, DynamoDB, initial setup)
+	@echo "Running bootstrap script..."
+	@./scripts/bootstrap.sh
+
 plan: package ## Run Terraform plan
 	@echo "Running Terraform plan..."
 	cd terraform && terraform plan
@@ -71,14 +75,11 @@ deploy: package ## Deploy infrastructure with Terraform
 	@echo ""
 	@make get-url
 
-deploy-code-only: package ## Fast deploy - only update Lambda code (no infrastructure changes)
-	@echo "Updating Lambda function code only (fast deploy)..."
-	@aws lambda update-function-code \
-		--function-name finEdSkywalker-api \
-		--zip-file fileb://$(LAMBDA_ZIP) \
-		--no-cli-pager
-	@echo "Waiting for function update to complete..."
-	@aws lambda wait function-updated --function-name finEdSkywalker-api
+deploy-code: package ## Deploy only Lambda code via S3 + Terraform
+	@echo "Uploading Lambda code to S3..."
+	@aws s3 cp $(LAMBDA_ZIP) s3://finedskywalker-lambda-artifacts/lambda/bootstrap.zip
+	@echo "Updating Lambda function via Terraform..."
+	@cd terraform && terraform apply -auto-approve -target=aws_lambda_function.api -refresh=true
 	@echo ""
 	@echo "Lambda function updated successfully!"
 	@echo ""

@@ -1,15 +1,17 @@
 # finEdSkywalker
 
-A production-ready GoLang AWS Lambda function with HTTP API Gateway integration, local development support, and automated CI/CD deployment.
+A production-ready GoLang AWS Lambda function with HTTP API Gateway integration, remote state management, OIDC authentication, and automated CI/CD.
 
 ## Features
 
 - 🚀 **AWS Lambda** - Serverless Go function running on ARM64 Graviton2
 - 🌐 **API Gateway** - HTTP API with automatic CORS support
+- 🔐 **JWT Authentication** - Secure token-based authentication for API endpoints
 - 🏠 **Local Development** - Test endpoints locally without deploying
-- 🔧 **Terraform** - Infrastructure as Code for reproducible deployments
-- 🤖 **GitHub Actions** - Automated testing and deployment pipeline
-- 📦 **Easy Build** - Makefile automation for all tasks
+- 🔧 **Terraform** - Infrastructure as Code with remote state + locking
+- 🔒 **OIDC Security** - No long-lived AWS keys, GitHub → AWS via OpenID Connect
+- 🤖 **Smart CI/CD** - Separate workflows for infrastructure and code
+- 📦 **S3-backed Lambda** - Terraform manages code deployment via S3
 
 ## Architecture
 
@@ -18,96 +20,126 @@ A production-ready GoLang AWS Lambda function with HTTP API Gateway integration,
 │ Client  │────▶│  API Gateway  │────▶│   Lambda    │
 │         │     │   (HTTP API)  │     │  (Go/ARM64) │
 └─────────┘     └───────────────┘     └─────────────┘
-```
 
+         GitHub Actions (OIDC)
+                 │
+    ┌────────────┼────────────┐
+    │            │            │
+    ▼            ▼            ▼
+Terraform    S3 Bucket    DynamoDB
+ (apply)    (artifacts)    (locks)
+```
+```mermaid
+graph LR
+    User[User Request] --> APIGateway[API Gateway HTTP]
+    APIGateway --> Lambda[Lambda Function]
+    Lambda --> CloudWatch[CloudWatch Logs]
+    S3Artifacts[S3 Lambda Artifacts] -.Lambda Code.-> Lambda
+    GitHubActions[GitHub Actions] -.Deploy.-> S3Artifacts
+    GitHubActions -.OIDC Auth.-> IAMRole[IAM Role]
+```
+Authentication Architecture
+```mermaid
+sequenceDiagram
+    participant User
+    participant API as API Gateway
+    participant Lambda
+    participant Auth as Auth Middleware
+
+    User->>API: POST /auth/login<br/>(username + password)
+    API->>Lambda: Forward request
+    Lambda->>Auth: Validate credentials
+    Auth-->>Lambda: Generate JWT token
+    Lambda-->>User: Return JWT token
+    
+    User->>API: GET /api/items<br/>(Authorization: Bearer token)
+    API->>Lambda: Forward request
+    Lambda->>Auth: Validate JWT
+    Auth-->>Lambda: Extract user info
+    Lambda-->>User: Return protected data
+```
 ## Prerequisites
 
 - **Go 1.21+** - [Install Go](https://golang.org/doc/install)
 - **Terraform 1.0+** - [Install Terraform](https://www.terraform.io/downloads)
-- **AWS CLI** - [Install AWS CLI](https://aws.amazon.com/cli/)
+- **AWS CLI** - [Install AWS CLI](https://aws.amazon.com/cli/) (for bootstrap only)
 - **Make** - Usually pre-installed on macOS/Linux
 - **jq** - For pretty JSON output (optional)
 
 ## Quick Start
 
-### 1. Local Development
+### Local Development (No AWS Required)
 
 Run the API locally on your machine:
 
 ```bash
+# Set JWT secret for authentication
+export JWT_SECRET="test-secret-key-for-development-only"
+
 # Start local server
 make run-local
 
 # In another terminal, test endpoints
 make curl-test
+
+# Test authentication
+./scripts/test-auth.sh
 ```
 
-The server will start on `http://localhost:8080`. You can test with curl:
+### Production Deployment
+
+See **[SETUP.md](SETUP.md)** for complete production setup with:
+- Remote state management
+- OIDC authentication
+- GitHub Actions CI/CD
+
+**Quick version:**
 
 ```bash
-# Health check
-curl http://localhost:8080/health
+# 1. Bootstrap AWS infrastructure (one-time)
+./scripts/bootstrap.sh
 
-# List items
-curl http://localhost:8080/api/items
+# 2. Generate JWT secret
+export JWT_SECRET=$(openssl rand -base64 32)
 
-# Get single item
-curl http://localhost:8080/api/items/123
+# 3. Deploy infrastructure
+cd terraform
+terraform init
+export TF_VAR_jwt_secret="$JWT_SECRET"
+terraform apply
 
-# Create item
-curl -X POST http://localhost:8080/api/items \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Test Item","description":"My test item"}'
-```
+# 4. Configure GitHub secrets
+# Add AWS_ROLE_ARN from terraform output
+# Add JWT_SECRET as a secret
 
-### 2. Deploy to AWS
-
-#### First-time Setup
-
-1. **Configure AWS credentials:**
-
-```bash
-aws configure
-```
-
-2. **Initialize Terraform:**
-
-```bash
-make init-terraform
-```
-
-3. **Deploy infrastructure:**
-
-```bash
-make deploy
-```
-
-This will:
-- Build the Go binary for Lambda
-- Package it as a ZIP file
-- Deploy infrastructure with Terraform
-- Output the API Gateway URL
-
-#### Get the API URL
-
-```bash
-make get-url
-```
-
-#### Test the deployed API
-
-```bash
-make curl-test-deployed
+# 5. Push to master - automatic deployment!
+git push origin master
 ```
 
 ## Available Endpoints
 
+### Public Endpoints (No Authentication Required)
+
 | Method | Endpoint          | Description           |
 |--------|-------------------|-----------------------|
 | GET    | `/health`         | Health check          |
-| GET    | `/api/items`      | List all items        |
-| GET    | `/api/items/{id}` | Get single item by ID |
-| POST   | `/api/items`      | Create new item       |
+| POST   | `/auth/login`     | User authentication   |
+| POST   | `/auth/refresh`   | Refresh JWT token     |
+
+### Protected Endpoints (JWT Authentication Required)
+
+| Method | Endpoint          | Description           | Auth Required |
+|--------|-------------------|-----------------------|---------------|
+| GET    | `/api/items`      | List all items        | ✅ Yes        |
+| GET    | `/api/items/{id}` | Get single item by ID | ✅ Yes        |
+| POST   | `/api/items`      | Create new item       | ✅ Yes        |
+
+**Authentication:** Include JWT token in the Authorization header:
+```bash
+Authorization: Bearer <your-jwt-token>
+```
+
+See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for detailed authentication guide.
 
 ## Development
 
@@ -117,11 +149,19 @@ make curl-test-deployed
 finEdSkywalker/
 ├── cmd/
 │   ├── lambda/          # Lambda entry point
-│   └── local/           # Local development server
+│   ├── local/           # Local development server
+│   └── hashgen/         # Password hash generator tool
 ├── internal/
-│   └── handlers/        # Shared API handlers
+│   ├── handlers/        # API handlers
+│   └── auth/            # Authentication & JWT logic
 ├── terraform/           # Infrastructure as Code
 ├── .github/workflows/   # CI/CD pipeline
+├── docs/                # Documentation
+│   ├── AUTHENTICATION.md       # Auth guide
+│   └── AUTH_IMPLEMENTATION.md  # Implementation details
+├── scripts/             # Utility scripts
+│   ├── bootstrap.sh     # AWS setup
+│   └── test-auth.sh     # Auth testing
 ├── Makefile            # Build automation
 └── go.mod              # Go dependencies
 ```
@@ -164,58 +204,167 @@ make lint
 
 1. Add handler function in `internal/handlers/api.go`
 2. Add route in the `Handler` function's switch statement
-3. Test locally with `make run-local`
-4. Deploy with `make deploy`
+3. For protected endpoints, wrap with `auth.RequireAuth()`
+4. Test locally with `make run-local`
+5. Deploy with `make deploy`
 
-Example:
+Example (Public Endpoint):
+
+```go
+// In internal/handlers/api.go
+case request.Path == "/api/public" && request.HTTPMethod == "GET":
+    return handlePublicData(request)
+```
+
+Example (Protected Endpoint):
 
 ```go
 // In internal/handlers/api.go
 case request.Path == "/api/users" && request.HTTPMethod == "GET":
+    return auth.RequireAuth(handleListUsersAuth)(request)
+
+// Create the auth-wrapped handler
+func handleListUsersAuth(request events.APIGatewayProxyRequest, authCtx *auth.AuthContext) (events.APIGatewayProxyResponse, error) {
+    // authCtx contains user info: authCtx.UserID, authCtx.Username
     return handleListUsers(request)
+}
 ```
+
+## Authentication
+
+### Quick Start
+
+1. **Login to get JWT token:**
+```bash
+curl -X POST https://your-api.execute-api.us-east-1.amazonaws.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"sshetty","password":"Utd@Pogba6"}'
+```
+
+Response:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "username": "sshetty",
+  "message": "Login successful"
+}
+```
+
+2. **Use token to access protected endpoints:**
+```bash
+curl https://your-api.execute-api.us-east-1.amazonaws.com/api/items \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### Managing Users
+
+Generate password hashes for new users:
+
+```bash
+# Build the tool
+go build -o bin/hashgen ./cmd/hashgen/main.go
+
+# Run and follow prompts
+./bin/hashgen
+```
+
+Add the generated hash to `internal/auth/users.go`.
+
+### Full Documentation
+
+See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for:
+- Complete authentication guide
+- Security best practices
+- Token management
+- Error handling
+- Production deployment
 
 ## CI/CD with GitHub Actions
 
-The repository includes automated CI/CD that:
+Two separate workflows for safety and speed:
 
-1. **On Pull Requests:**
-   - Runs tests
-   - Checks code formatting
-   - Builds the Lambda function
+### 1. Terraform Workflow (`terraform.yml`)
 
-2. **On Push to Main:**
-   - All of the above, plus
-   - **Smart deployment:**
-     - If only Go code changed → Updates Lambda function directly (~30 seconds)
-     - If Terraform files changed → Runs full Terraform apply (~2-3 minutes)
-   - This makes code deployments much faster!
+**Triggers:** Changes to `terraform/**`
+
+- **On PR:** 
+  - Runs `terraform plan`
+  - Comments plan on PR for review
+  - Validates formatting and syntax
+  
+- **On merge to master:**
+  - Runs `terraform apply`
+  - Updates infrastructure
+  - Uses remote state + locking
+
+### 2. Deploy Workflow (`deploy.yml`)
+
+**Triggers:** Changes to Go code (`cmd/`, `internal/`, `go.mod`)
+
+- **On PR:**
+  - Runs tests
+  - Checks code formatting
+  - Builds Lambda binary
+  
+- **On merge to master:**
+  - Uploads ZIP to S3
+  - Triggers Terraform to update Lambda
+  - Verifies deployment
+
+### Security: OIDC Authentication
+
+No long-lived AWS keys! Uses OpenID Connect:
+
+```yaml
+- uses: aws-actions/configure-aws-credentials@v4
+  with:
+    role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+```
+
+GitHub Actions gets temporary credentials (1-hour lifetime) directly from AWS.
 
 ### Required GitHub Secrets
 
-Configure these secrets in your GitHub repository settings (Settings → Secrets and variables → Actions):
+Only one secret needed:
 
-- `AWS_ACCESS_KEY_ID` - Your AWS access key
-- `AWS_SECRET_ACCESS_KEY` - Your AWS secret key
-- `AWS_REGION` - AWS region (default: us-east-1)
+- `AWS_ROLE_ARN` - IAM role ARN for GitHub Actions (from `terraform output`)
 
-### Setting Up GitHub Secrets
-
+Get it after running `terraform apply`:
 ```bash
-# Go to your repository on GitHub
-Settings → Secrets and variables → Actions → New repository secret
+cd terraform
+terraform output github_actions_role_arn
 ```
-
-Add each secret with its corresponding value from your AWS credentials.
 
 ## Infrastructure
 
 The Terraform configuration creates:
 
-- **Lambda Function** - Go binary running on ARM64
-- **IAM Role** - Execution role with CloudWatch logging
+- **Lambda Function** - Go binary running on ARM64, code managed via S3
+- **IAM Roles** - Lambda execution role + GitHub Actions OIDC role
 - **API Gateway HTTP API** - Low-latency HTTP endpoints
 - **CloudWatch Log Groups** - For Lambda and API Gateway logs
+- **S3 Buckets** - For Terraform state and Lambda artifacts
+- **DynamoDB Table** - For Terraform state locking
+- **OIDC Provider** - For GitHub Actions authentication
+
+### Remote State
+
+State is stored remotely with locking:
+
+```hcl
+backend "s3" {
+  bucket         = "finedskywalker-terraform-state"
+  key            = "finEdSkywalker/terraform.tfstate"
+  dynamodb_table = "finedskywalker-terraform-locks"
+  encrypt        = true
+}
+```
+
+Benefits:
+- ✅ Team collaboration safe
+- ✅ State versioning enabled
+- ✅ Prevents concurrent applies
+- ✅ Encrypted at rest
 
 ### Terraform Variables
 
