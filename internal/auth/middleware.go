@@ -70,4 +70,3 @@ func unauthorizedResponse(message string) (events.APIGatewayProxyResponse, error
 		Body: `{"error": "Unauthorized", "message": "` + message + `"}`,
 	}, nil
 }
-

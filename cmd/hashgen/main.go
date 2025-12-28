@@ -78,4 +78,3 @@ func main() {
 	fmt.Println("Copy the Go code snippet above and add it to the defaultUsers array")
 	fmt.Println()
 }
-

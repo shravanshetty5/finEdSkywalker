@@ -112,4 +112,3 @@ func isJSON(str string) bool {
 	str = strings.TrimSpace(str)
 	return strings.HasPrefix(str, "{") || strings.HasPrefix(str, "[")
 }
-

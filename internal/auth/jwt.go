@@ -112,4 +112,3 @@ func ExtractTokenFromHeader(authHeader string) (string, error) {
 
 	return token, nil
 }
-

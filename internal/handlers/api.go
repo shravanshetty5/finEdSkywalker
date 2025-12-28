@@ -44,7 +44,7 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return handleLogin(request)
 	case request.Path == "/auth/refresh" && request.HTTPMethod == "POST":
 		return handleRefreshToken(request)
-	
+
 	// Protected routes (authentication required)
 	case request.Path == "/api/items" && request.HTTPMethod == "GET":
 		return auth.RequireAuth(handleListItemsAuth)(request)
@@ -202,4 +202,3 @@ func errorResponse(statusCode int, message string, details string) (events.APIGa
 func notFound() (events.APIGatewayProxyResponse, error) {
 	return errorResponse(404, "Not found", "The requested resource was not found")
 }
-

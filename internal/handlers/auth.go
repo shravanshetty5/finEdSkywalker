@@ -107,4 +107,3 @@ func handleRefreshToken(request events.APIGatewayProxyRequest) (events.APIGatewa
 
 	return jsonResponse(200, resp)
 }
-

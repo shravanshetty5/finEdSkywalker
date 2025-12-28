@@ -141,4 +141,3 @@ func GetUserStore() *UserStore {
 	}
 	return globalUserStore
 }
-

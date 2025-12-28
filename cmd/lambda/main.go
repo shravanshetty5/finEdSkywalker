@@ -11,4 +11,3 @@ func main() {
 	log.Println("Starting Lambda function...")
 	lambda.Start(handlers.Handler)
 }
-
