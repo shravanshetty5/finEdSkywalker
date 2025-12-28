@@ -14,9 +14,6 @@ bootstrap.zip
 coverage.out
 coverage.html
 
-# Dependencies
-go.sum
-
 # IDE and editor files
 .vscode/
 .idea/
