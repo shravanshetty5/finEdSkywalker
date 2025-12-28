@@ -1,3 +1,12 @@
+# Data sources for imported resources
+data "aws_s3_bucket" "terraform_state" {
+  bucket = "finedskywalker-terraform-state"
+}
+
+data "aws_dynamodb_table" "terraform_locks" {
+  name = "finedskywalker-terraform-locks"
+}
+
 # OIDC provider for GitHub Actions
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
@@ -55,8 +64,8 @@ resource "aws_iam_role_policy" "github_actions" {
         Resource = [
           aws_s3_bucket.lambda_artifacts.arn,
           "${aws_s3_bucket.lambda_artifacts.arn}/*",
-          aws_s3_bucket.terraform_state.arn,
-          "${aws_s3_bucket.terraform_state.arn}/*"
+          data.aws_s3_bucket.terraform_state.arn,
+          "${data.aws_s3_bucket.terraform_state.arn}/*"
         ]
       },
       {
@@ -66,7 +75,7 @@ resource "aws_iam_role_policy" "github_actions" {
           "dynamodb:PutItem",
           "dynamodb:DeleteItem"
         ]
-        Resource = aws_dynamodb_table.terraform_locks.arn
+        Resource = data.aws_dynamodb_table.terraform_locks.arn
       },
       {
         Effect = "Allow"
