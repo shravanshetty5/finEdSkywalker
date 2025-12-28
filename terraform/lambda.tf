@@ -1,3 +1,34 @@
+# S3 bucket for Lambda artifacts
+resource "aws_s3_bucket" "lambda_artifacts" {
+  bucket = var.artifacts_bucket_name
+}
+
+resource "aws_s3_bucket_versioning" "lambda_artifacts" {
+  bucket = aws_s3_bucket.lambda_artifacts.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "lambda_artifacts" {
+  bucket = aws_s3_bucket.lambda_artifacts.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "lambda_artifacts" {
+  bucket = aws_s3_bucket.lambda_artifacts.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
 # IAM Role for Lambda execution
 resource "aws_iam_role" "lambda_exec" {
   name = "${var.lambda_function_name}-exec-role"
@@ -22,27 +53,43 @@ resource "aws_iam_role_policy_attachment" "lambda_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# Lambda function
+# Lambda function - uses S3 for code
 resource "aws_lambda_function" "api" {
-  filename         = var.lambda_zip_path
   function_name    = var.lambda_function_name
   role            = aws_iam_role.lambda_exec.arn
   handler         = "bootstrap"
-  source_code_hash = filebase64sha256(var.lambda_zip_path)
   runtime         = var.lambda_runtime
   architectures   = [var.lambda_architecture]
   memory_size     = var.lambda_memory_size
   timeout         = var.lambda_timeout
+  
+  # Limit concurrent executions to prevent cost overruns
+  reserved_concurrent_executions = 10
+
+  # Use S3 for Lambda code
+  s3_bucket         = aws_s3_bucket.lambda_artifacts.id
+  s3_key            = "lambda/bootstrap.zip"
+  source_code_hash  = try(data.aws_s3_object.lambda_package.version_id, null)
 
   environment {
     variables = {
       ENVIRONMENT = var.environment
+      JWT_SECRET  = var.jwt_secret
     }
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.lambda_policy
+    aws_iam_role_policy_attachment.lambda_policy,
+    aws_cloudwatch_log_group.lambda_logs
   ]
+}
+
+# Data source to get Lambda package version
+data "aws_s3_object" "lambda_package" {
+  bucket = aws_s3_bucket.lambda_artifacts.id
+  key    = "lambda/bootstrap.zip"
+
+  depends_on = [aws_s3_bucket.lambda_artifacts]
 }
 
 # CloudWatch Log Group for Lambda
@@ -88,6 +135,12 @@ resource "aws_apigatewayv2_stage" "default" {
   name        = "$default"
   auto_deploy = true
 
+  # Rate limiting and throttling
+  default_route_settings {
+    throttling_burst_limit = var.api_throttle_burst_limit
+    throttling_rate_limit  = var.api_throttle_rate_limit
+  }
+
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_logs.arn
     format = jsonencode({
@@ -117,4 +170,3 @@ resource "aws_lambda_permission" "api_gateway" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
-

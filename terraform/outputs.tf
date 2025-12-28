@@ -18,3 +18,12 @@ output "api_gateway_id" {
   value       = aws_apigatewayv2_api.api.id
 }
 
+output "artifacts_bucket_name" {
+  description = "S3 bucket for Lambda artifacts"
+  value       = aws_s3_bucket.lambda_artifacts.id
+}
+
+output "github_actions_role_arn" {
+  description = "IAM role ARN for GitHub Actions OIDC"
+  value       = aws_iam_role.github_actions.arn
+}

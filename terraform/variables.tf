@@ -40,9 +40,39 @@ variable "lambda_timeout" {
   default     = 30
 }
 
-variable "lambda_zip_path" {
-  description = "Path to the Lambda deployment package"
+variable "artifacts_bucket_name" {
+  description = "S3 bucket name for Lambda artifacts"
   type        = string
-  default     = "../bootstrap.zip"
+  default     = "finedskywalker-lambda-artifacts"
 }
 
+variable "github_org" {
+  description = "GitHub organization or username"
+  type        = string
+  default     = "sshetty"
+}
+
+variable "github_repo" {
+  description = "GitHub repository name"
+  type        = string
+  default     = "finEdSkywalker"
+}
+
+variable "jwt_secret" {
+  description = "Secret key for JWT token signing and validation"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "api_throttle_burst_limit" {
+  description = "Maximum concurrent requests allowed (burst)"
+  type        = number
+  default     = 100
+}
+
+variable "api_throttle_rate_limit" {
+  description = "Maximum requests per second"
+  type        = number
+  default     = 50
+}

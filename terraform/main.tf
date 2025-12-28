@@ -8,14 +8,13 @@ terraform {
     }
   }
 
-  # Uncomment to use S3 backend for state management
-  # backend "s3" {
-  #   bucket         = "your-terraform-state-bucket"
-  #   key            = "finEdSkywalker/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   encrypt        = true
-  #   dynamodb_table = "terraform-state-lock"
-  # }
+  backend "s3" {
+    bucket         = "finedskywalker-terraform-state"
+    key            = "finEdSkywalker/terraform.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    dynamodb_table = "finedskywalker-terraform-locks"
+  }
 }
 
 provider "aws" {
@@ -29,4 +28,3 @@ provider "aws" {
     }
   }
 }
-
