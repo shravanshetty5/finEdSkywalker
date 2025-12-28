@@ -59,7 +59,11 @@ resource "aws_iam_role_policy" "github_actions" {
           "s3:PutObject",
           "s3:GetObject",
           "s3:GetObjectVersion",
-          "s3:ListBucket"
+          "s3:ListBucket",
+          "s3:GetBucketPolicy",
+          "s3:GetBucketVersioning",
+          "s3:GetBucketPublicAccessBlock",
+          "s3:GetEncryptionConfiguration"
         ]
         Resource = [
           aws_s3_bucket.lambda_artifacts.arn,
@@ -73,7 +77,8 @@ resource "aws_iam_role_policy" "github_actions" {
         Action = [
           "dynamodb:GetItem",
           "dynamodb:PutItem",
-          "dynamodb:DeleteItem"
+          "dynamodb:DeleteItem",
+          "dynamodb:DescribeTable"
         ]
         Resource = data.aws_dynamodb_table.terraform_locks.arn
       },
@@ -105,11 +110,13 @@ resource "aws_iam_role_policy" "github_actions" {
           "iam:PutRolePolicy",
           "iam:DeleteRolePolicy",
           "iam:ListRolePolicies",
-          "iam:ListAttachedRolePolicies"
+          "iam:ListAttachedRolePolicies",
+          "iam:GetOpenIDConnectProvider"
         ]
         Resource = [
           aws_iam_role.lambda_exec.arn,
-          "arn:aws:iam::*:role/${var.lambda_function_name}-*"
+          "arn:aws:iam::*:role/${var.lambda_function_name}-*",
+          aws_iam_openid_connect_provider.github_actions.arn
         ]
       },
       {
