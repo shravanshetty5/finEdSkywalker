@@ -14,14 +14,14 @@ type AuthContext struct {
 
 // AuthMiddleware wraps a handler function with authentication
 type AuthMiddleware struct {
-	handler func(events.APIGatewayProxyRequest, *AuthContext) (events.APIGatewayProxyResponse, error)
+	handler func(events.APIGatewayV2HTTPRequest, *AuthContext) (events.APIGatewayV2HTTPResponse, error)
 }
 
 // RequireAuth is a middleware that validates JWT tokens
 func RequireAuth(
-	handler func(events.APIGatewayProxyRequest, *AuthContext) (events.APIGatewayProxyResponse, error),
-) func(events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	return func(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	handler func(events.APIGatewayV2HTTPRequest, *AuthContext) (events.APIGatewayV2HTTPResponse, error),
+) func(events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	return func(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 		// Extract Authorization header
 		authHeader, ok := request.Headers["authorization"]
 		if !ok {
@@ -60,8 +60,8 @@ func RequireAuth(
 }
 
 // unauthorizedResponse creates a 401 Unauthorized response
-func unauthorizedResponse(message string) (events.APIGatewayProxyResponse, error) {
-	return events.APIGatewayProxyResponse{
+func unauthorizedResponse(message string) (events.APIGatewayV2HTTPResponse, error) {
+	return events.APIGatewayV2HTTPResponse{
 		StatusCode: 401,
 		Headers: map[string]string{
 			"Content-Type":                "application/json",

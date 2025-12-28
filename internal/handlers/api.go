@@ -29,28 +29,31 @@ type CreateRequest struct {
 }
 
 // Handler is the main API Gateway proxy handler
-func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	log.Printf("Received request: %s %s", request.HTTPMethod, request.Path)
+func Handler(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	log.Printf("Received request: %s %s", request.RequestContext.HTTP.Method, request.RawPath)
 
 	// Initialize user store on first request
 	auth.InitUserStore()
 
+	path := request.RawPath
+	method := request.RequestContext.HTTP.Method
+
 	// Route based on path and method
 	switch {
 	// Public routes (no authentication required)
-	case request.Path == "/health" && request.HTTPMethod == "GET":
+	case path == "/health" && method == "GET":
 		return handleHealth(request)
-	case request.Path == "/auth/login" && request.HTTPMethod == "POST":
+	case path == "/auth/login" && method == "POST":
 		return handleLogin(request)
-	case request.Path == "/auth/refresh" && request.HTTPMethod == "POST":
+	case path == "/auth/refresh" && method == "POST":
 		return handleRefreshToken(request)
 
 	// Protected routes (authentication required)
-	case request.Path == "/api/items" && request.HTTPMethod == "GET":
+	case path == "/api/items" && method == "GET":
 		return auth.RequireAuth(handleListItemsAuth)(request)
-	case request.Path == "/api/items" && request.HTTPMethod == "POST":
+	case path == "/api/items" && method == "POST":
 		return auth.RequireAuth(handleCreateItemAuth)(request)
-	case strings.HasPrefix(request.Path, "/api/items/") && request.HTTPMethod == "GET":
+	case strings.HasPrefix(path, "/api/items/") && method == "GET":
 		return auth.RequireAuth(handleGetItemAuth)(request)
 	default:
 		return notFound()
@@ -58,7 +61,7 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 }
 
 // handleHealth returns the health status
-func handleHealth(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handleHealth(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	resp := Response{
 		Message: "Service is healthy",
 		Data: map[string]string{
@@ -72,7 +75,7 @@ func handleHealth(request events.APIGatewayProxyRequest) (events.APIGatewayProxy
 }
 
 // handleListItems returns a list of items
-func handleListItems(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handleListItems(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	// Sample data - in production, this would come from a database
 	items := []map[string]interface{}{
 		{"id": "1", "name": "Item 1", "description": "First item"},
@@ -88,13 +91,13 @@ func handleListItems(request events.APIGatewayProxyRequest) (events.APIGatewayPr
 }
 
 // handleListItemsAuth is the authenticated version of handleListItems
-func handleListItemsAuth(request events.APIGatewayProxyRequest, authCtx *auth.AuthContext) (events.APIGatewayProxyResponse, error) {
+func handleListItemsAuth(request events.APIGatewayV2HTTPRequest, authCtx *auth.AuthContext) (events.APIGatewayV2HTTPResponse, error) {
 	log.Printf("User %s (%s) accessing items list", authCtx.Username, authCtx.UserID)
 	return handleListItems(request)
 }
 
 // handleCreateItem creates a new item
-func handleCreateItem(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handleCreateItem(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	var createReq CreateRequest
 
 	if err := json.Unmarshal([]byte(request.Body), &createReq); err != nil {
@@ -122,15 +125,15 @@ func handleCreateItem(request events.APIGatewayProxyRequest) (events.APIGatewayP
 }
 
 // handleCreateItemAuth is the authenticated version of handleCreateItem
-func handleCreateItemAuth(request events.APIGatewayProxyRequest, authCtx *auth.AuthContext) (events.APIGatewayProxyResponse, error) {
+func handleCreateItemAuth(request events.APIGatewayV2HTTPRequest, authCtx *auth.AuthContext) (events.APIGatewayV2HTTPResponse, error) {
 	log.Printf("User %s (%s) creating new item", authCtx.Username, authCtx.UserID)
 	return handleCreateItem(request)
 }
 
 // handleGetItem returns a single item by ID
-func handleGetItem(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handleGetItem(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	// Extract ID from path
-	parts := strings.Split(request.Path, "/")
+	parts := strings.Split(request.RawPath, "/")
 	if len(parts) < 4 {
 		return errorResponse(400, "Invalid request", "Item ID is required")
 	}
@@ -152,8 +155,8 @@ func handleGetItem(request events.APIGatewayProxyRequest) (events.APIGatewayProx
 }
 
 // handleGetItemAuth is the authenticated version of handleGetItem
-func handleGetItemAuth(request events.APIGatewayProxyRequest, authCtx *auth.AuthContext) (events.APIGatewayProxyResponse, error) {
-	parts := strings.Split(request.Path, "/")
+func handleGetItemAuth(request events.APIGatewayV2HTTPRequest, authCtx *auth.AuthContext) (events.APIGatewayV2HTTPResponse, error) {
+	parts := strings.Split(request.RawPath, "/")
 	itemID := ""
 	if len(parts) >= 4 {
 		itemID = parts[3]
@@ -163,13 +166,13 @@ func handleGetItemAuth(request events.APIGatewayProxyRequest, authCtx *auth.Auth
 }
 
 // jsonResponse creates a successful JSON response
-func jsonResponse(statusCode int, body interface{}) (events.APIGatewayProxyResponse, error) {
+func jsonResponse(statusCode int, body interface{}) (events.APIGatewayV2HTTPResponse, error) {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return errorResponse(500, "Internal server error", err.Error())
 	}
 
-	return events.APIGatewayProxyResponse{
+	return events.APIGatewayV2HTTPResponse{
 		StatusCode: statusCode,
 		Headers: map[string]string{
 			"Content-Type":                "application/json",
@@ -180,7 +183,7 @@ func jsonResponse(statusCode int, body interface{}) (events.APIGatewayProxyRespo
 }
 
 // errorResponse creates an error JSON response
-func errorResponse(statusCode int, message string, details string) (events.APIGatewayProxyResponse, error) {
+func errorResponse(statusCode int, message string, details string) (events.APIGatewayV2HTTPResponse, error) {
 	errResp := ErrorResponse{
 		Error:   message,
 		Message: details,
@@ -188,7 +191,7 @@ func errorResponse(statusCode int, message string, details string) (events.APIGa
 
 	jsonBody, _ := json.Marshal(errResp)
 
-	return events.APIGatewayProxyResponse{
+	return events.APIGatewayV2HTTPResponse{
 		StatusCode: statusCode,
 		Headers: map[string]string{
 			"Content-Type":                "application/json",
@@ -199,6 +202,6 @@ func errorResponse(statusCode int, message string, details string) (events.APIGa
 }
 
 // notFound returns a 404 response
-func notFound() (events.APIGatewayProxyResponse, error) {
+func notFound() (events.APIGatewayV2HTTPResponse, error) {
 	return errorResponse(404, "Not found", "The requested resource was not found")
 }

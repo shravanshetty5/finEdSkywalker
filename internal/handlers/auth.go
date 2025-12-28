@@ -22,7 +22,7 @@ type LoginResponse struct {
 }
 
 // handleLogin handles user authentication and returns a JWT token
-func handleLogin(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handleLogin(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	var loginReq LoginRequest
 
 	// Parse request body
@@ -65,7 +65,7 @@ func handleLogin(request events.APIGatewayProxyRequest) (events.APIGatewayProxyR
 }
 
 // handleRefreshToken handles token refresh requests
-func handleRefreshToken(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func handleRefreshToken(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	// Extract and validate current token
 	authHeader, ok := request.Headers["authorization"]
 	if !ok {
