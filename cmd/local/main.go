@@ -61,12 +61,17 @@ func lambdaHandler(w http.ResponseWriter, r *http.Request) {
 		pathParams[key] = value
 	}
 
-	// Create API Gateway proxy request
-	request := events.APIGatewayProxyRequest{
-		HTTPMethod:            r.Method,
-		Path:                  r.URL.Path,
-		QueryStringParameters: queryParams,
+	// Create API Gateway V2 HTTP request
+	request := events.APIGatewayV2HTTPRequest{
+		RawPath: r.URL.Path,
+		RequestContext: events.APIGatewayV2HTTPRequestContext{
+			HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
+				Method: r.Method,
+				Path:   r.URL.Path,
+			},
+		},
 		Headers:               headers,
+		QueryStringParameters: queryParams,
 		PathParameters:        pathParams,
 		Body:                  string(body),
 		IsBase64Encoded:       false,
