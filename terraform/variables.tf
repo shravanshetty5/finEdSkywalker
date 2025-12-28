@@ -49,7 +49,7 @@ variable "artifacts_bucket_name" {
 variable "github_org" {
   description = "GitHub organization or username"
   type        = string
-  default     = "sshetty"
+  default     = "shravanshetty5"
 }
 
 variable "github_repo" {
