@@ -6,8 +6,8 @@ This guide walks you through setting up the production-grade infrastructure with
 
 - **Remote State**: S3 + DynamoDB for state locking
 - **Security**: GitHub OIDC (no long-lived AWS keys)
-- **CI/CD**: Separate workflows for infrastructure and code
-- **Terraform**: Manages both infrastructure AND Lambda code
+- **CI/CD**: Automated Lambda deployments
+- **Infrastructure**: Manual Terraform management (simple and reliable)
 
 ## Prerequisites
 
@@ -82,38 +82,37 @@ Add these secrets to your GitHub repository:
 
 That's it! No AWS access keys needed. ✨
 
-## Step 4: Test the Workflows
+## Step 4: Test the Deploy Workflow
 
-### Test Terraform Workflow
-
-1. Make a change to any file in `terraform/`
-2. Create a PR
-3. GitHub Actions will run `terraform plan` and comment on the PR
-4. Merge to master
-5. GitHub Actions will run `terraform apply`
-
-### Test Deploy Workflow
+### Automated Lambda Deployment
 
 1. Make a change to Go code in `cmd/` or `internal/`
 2. Create a PR
 3. GitHub Actions will test and build
 4. Merge to master
-5. GitHub Actions will deploy to Lambda via S3 + Terraform
+5. GitHub Actions will deploy to Lambda automatically
+
+### Manual Infrastructure Changes
+
+For infrastructure changes, run Terraform locally:
+
+```bash
+cd terraform
+export TF_VAR_jwt_secret="$JWT_SECRET"
+terraform plan
+terraform apply
+```
+
+This keeps things simple - infrastructure changes are rare, so managing them manually is easier than maintaining a complex CI/CD workflow.
 
 ## How It Works
 
-### Workflow Separation
-
-**Terraform Workflow** (`terraform.yml`)
-- Triggers: Changes to `terraform/**`
-- PR: Runs plan, comments on PR
-- Master: Runs apply
-- Uses: Remote state + locking
+### CI/CD Workflow
 
 **Deploy Workflow** (`deploy.yml`)
 - Triggers: Changes to Go code
 - PR: Tests and builds
-- Master: Uploads to S3, triggers Terraform to update Lambda
+- Master: Uploads to S3, updates Lambda directly
 - Uses: OIDC for AWS auth
 
 ### OIDC Authentication
@@ -147,20 +146,22 @@ backend "s3" {
 
 ### Lambda Code Management
 
-Terraform manages Lambda code via S3:
+GitHub Actions deploys Lambda code directly:
 
-```hcl
-resource "aws_lambda_function" "api" {
-  s3_bucket         = aws_s3_bucket.lambda_artifacts.id
-  s3_key            = "lambda/bootstrap.zip"
-  source_code_hash  = data.aws_s3_object.lambda_package.version_id
-}
+```yaml
+- name: Update Lambda Function
+  run: |
+    aws lambda update-function-code \
+      --function-name finEdSkywalker-api \
+      --s3-bucket finedskywalker-lambda-artifacts \
+      --s3-key lambda/bootstrap.zip \
+      --publish
 ```
 
 When you deploy:
 1. Build uploads new ZIP to S3
-2. Terraform detects version change
-3. Terraform updates Lambda function
+2. Lambda function is updated with new code
+3. Deployment is verified automatically
 4. No manual AWS CLI calls needed!
 
 ## Local Development
@@ -195,13 +196,11 @@ curl -X POST http://localhost:8080/auth/login \
 
 ### Manual Deployment
 
-If needed, you can still deploy manually:
+Deploy code changes manually if needed:
 
 ```bash
 # Set JWT secret
-# Generate a secure JWT secret
-export JWT_SECRET=$(openssl rand -base64 32)
-export TF_VAR_jwt_secret="$JWT_SECRET"
+export JWT_SECRET="your-production-secret"
 
 # Build and package
 make build
@@ -210,9 +209,19 @@ cd bin && zip ../bootstrap.zip bootstrap
 # Upload to S3
 aws s3 cp bootstrap.zip s3://finedskywalker-lambda-artifacts/lambda/
 
-# Update via Terraform
+# Update Lambda function
+aws lambda update-function-code \
+  --function-name finEdSkywalker-api \
+  --s3-bucket finedskywalker-lambda-artifacts \
+  --s3-key lambda/bootstrap.zip
+```
+
+For infrastructure changes:
+
+```bash
 cd terraform
-terraform apply -target=aws_lambda_function.api
+export TF_VAR_jwt_secret="$JWT_SECRET"
+terraform apply
 ```
 
 ## Troubleshooting

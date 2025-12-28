@@ -281,23 +281,9 @@ See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for:
 
 ## CI/CD with GitHub Actions
 
-Two separate workflows for safety and speed:
+Automated Lambda deployments with secure OIDC authentication:
 
-### 1. Terraform Workflow (`terraform.yml`)
-
-**Triggers:** Changes to `terraform/**`
-
-- **On PR:** 
-  - Runs `terraform plan`
-  - Comments plan on PR for review
-  - Validates formatting and syntax
-  
-- **On merge to master:**
-  - Runs `terraform apply`
-  - Updates infrastructure
-  - Uses remote state + locking
-
-### 2. Deploy Workflow (`deploy.yml`)
+### Deploy Workflow (`deploy.yml`)
 
 **Triggers:** Changes to Go code (`cmd/`, `internal/`, `go.mod`)
 
@@ -308,7 +294,7 @@ Two separate workflows for safety and speed:
   
 - **On merge to master:**
   - Uploads ZIP to S3
-  - Triggers Terraform to update Lambda
+  - Updates Lambda function directly
   - Verifies deployment
 
 ### Security: OIDC Authentication
@@ -325,15 +311,20 @@ GitHub Actions gets temporary credentials (1-hour lifetime) directly from AWS.
 
 ### Required GitHub Secrets
 
-Only one secret needed:
+Two secrets needed:
 
 - `AWS_ROLE_ARN` - IAM role ARN for GitHub Actions (from `terraform output`)
+- `JWT_SECRET` - Secret for JWT token signing
 
-Get it after running `terraform apply`:
+Get the role ARN after running `terraform apply`:
 ```bash
 cd terraform
 terraform output github_actions_role_arn
 ```
+
+### Infrastructure Changes
+
+**Terraform changes are managed manually** for simplicity. Run `terraform apply` locally when you need to modify infrastructure (rare for small projects).
 
 ## Infrastructure
 

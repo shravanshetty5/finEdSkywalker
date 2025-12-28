@@ -53,22 +53,26 @@ curl -X POST http://localhost:8080/auth/login \
 
 ### Via GitHub Actions (Recommended)
 
-**Infrastructure changes:**
-```bash
-# Edit terraform files
-git add terraform/
-git commit -m "feat: increase lambda memory"
-git push
-# Creates PR → terraform plan runs → merge → apply runs
-```
-
-**Code changes:**
+**Code changes (automatic):**
 ```bash
 # Edit Go files
 git add cmd/ internal/
 git commit -m "fix: handle edge case"
 git push
-# Creates PR → tests run → merge → deploy runs
+# Creates PR → tests run → merge → deploy runs automatically
+```
+
+**Infrastructure changes (manual):**
+```bash
+# Edit terraform files
+cd terraform
+export TF_VAR_jwt_secret="$JWT_SECRET"
+terraform plan
+terraform apply
+# Push changes to git for version control
+git add terraform/
+git commit -m "feat: increase lambda memory"
+git push
 ```
 
 ### Manual Deployment
@@ -76,16 +80,21 @@ git push
 ```bash
 # Set JWT secret first
 export JWT_SECRET="your-production-secret"
+
+# Deploy code changes
+make build
+cd bin && zip ../bootstrap.zip bootstrap
+aws s3 cp bootstrap.zip s3://finedskywalker-lambda-artifacts/lambda/
+aws lambda update-function-code \
+  --function-name finEdSkywalker-api \
+  --s3-bucket finedskywalker-lambda-artifacts \
+  --s3-key lambda/bootstrap.zip
+
+# Deploy infrastructure changes
+cd terraform
 export TF_VAR_jwt_secret="$JWT_SECRET"
-
-# Deploy everything
-make deploy
-
-# Deploy only code (Terraform via S3)
-make deploy-code
-
-# Plan changes
-make plan
+terraform plan
+terraform apply
 ```
 
 ## Useful Commands
@@ -189,17 +198,15 @@ terraform init
 
 ## Workflows
 
-### Terraform Workflow
-- **File:** `.github/workflows/terraform.yml`
-- **Triggers:** Changes to `terraform/**`
-- **PR:** Runs plan, comments on PR
-- **Master:** Runs apply
-
 ### Deploy Workflow
 - **File:** `.github/workflows/deploy.yml`
 - **Triggers:** Changes to `cmd/**`, `internal/**`, `go.mod`
 - **PR:** Tests and builds
-- **Master:** Deploys via S3 + Terraform
+- **Master:** Deploys Lambda automatically
+
+### Infrastructure Changes
+- **Managed:** Manually via Terraform
+- **Rationale:** Simpler for small projects, infrastructure changes are rare
 
 ## AWS Resources
 
@@ -331,6 +338,6 @@ aws s3api get-object \
 - [SETUP.md](SETUP.md) - Complete setup guide
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Architecture details
 - [README.md](README.md) - Full documentation
-- [AUTHENTICATION.md](docs/AUTHENTICATION.md) - Auth guide
-- [GETTING_STARTED.md](GETTING_STARTED.md) - Quick start
+- [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) - Auth guide
+- [docs/SECURITY.md](docs/SECURITY.md) - Security measures
 

@@ -1,12 +1,3 @@
-# Data sources for imported resources
-data "aws_s3_bucket" "terraform_state" {
-  bucket = "finedskywalker-terraform-state"
-}
-
-data "aws_dynamodb_table" "terraform_locks" {
-  name = "finedskywalker-terraform-locks"
-}
-
 # OIDC provider for GitHub Actions
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
@@ -45,7 +36,7 @@ resource "aws_iam_role" "github_actions" {
   })
 }
 
-# Policy for GitHub Actions to manage resources
+# Policy for GitHub Actions to deploy Lambda
 resource "aws_iam_role_policy" "github_actions" {
   name = "github-actions-policy"
   role = aws_iam_role.github_actions.id
@@ -53,101 +44,46 @@ resource "aws_iam_role_policy" "github_actions" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # S3 permissions for Lambda artifacts
       {
         Effect = "Allow"
         Action = [
           "s3:PutObject",
           "s3:GetObject",
           "s3:GetObjectVersion",
-          "s3:ListBucket",
-          "s3:GetBucketPolicy",
-          "s3:GetBucketVersioning",
-          "s3:GetBucketPublicAccessBlock",
-          "s3:GetEncryptionConfiguration"
+          "s3:ListBucket"
         ]
         Resource = [
           aws_s3_bucket.lambda_artifacts.arn,
-          "${aws_s3_bucket.lambda_artifacts.arn}/*",
-          data.aws_s3_bucket.terraform_state.arn,
-          "${data.aws_s3_bucket.terraform_state.arn}/*"
+          "${aws_s3_bucket.lambda_artifacts.arn}/*"
         ]
       },
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:DescribeTable"
-        ]
-        Resource = data.aws_dynamodb_table.terraform_locks.arn
-      },
+      # Lambda update permissions
       {
         Effect = "Allow"
         Action = [
           "lambda:UpdateFunctionCode",
           "lambda:GetFunction",
-          "lambda:GetFunctionConfiguration",
-          "lambda:UpdateFunctionConfiguration",
-          "lambda:CreateFunction",
-          "lambda:DeleteFunction",
-          "lambda:TagResource",
-          "lambda:ListTags",
-          "lambda:PublishVersion"
+          "lambda:GetFunctionConfiguration"
         ]
         Resource = "arn:aws:lambda:${var.aws_region}:*:function:${var.lambda_function_name}"
       },
+      # Lambda wait permissions
       {
         Effect = "Allow"
         Action = [
-          "iam:GetRole",
-          "iam:PassRole",
-          "iam:CreateRole",
-          "iam:DeleteRole",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:GetRolePolicy",
-          "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy",
-          "iam:ListRolePolicies",
-          "iam:ListAttachedRolePolicies",
-          "iam:GetOpenIDConnectProvider"
+          "lambda:GetFunction",
+          "lambda:GetFunctionConfiguration"
         ]
-        Resource = [
-          aws_iam_role.lambda_exec.arn,
-          "arn:aws:iam::*:role/${var.lambda_function_name}-*",
-          aws_iam_openid_connect_provider.github_actions.arn
-        ]
+        Resource = "arn:aws:lambda:${var.aws_region}:*:function:${var.lambda_function_name}"
       },
+      # API Gateway read permissions (for testing)
       {
         Effect = "Allow"
         Action = [
-          "apigateway:GET",
-          "apigateway:POST",
-          "apigateway:PUT",
-          "apigateway:PATCH",
-          "apigateway:DELETE"
+          "apigateway:GET"
         ]
         Resource = "arn:aws:apigateway:${var.aws_region}::/*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:DeleteLogGroup",
-          "logs:DescribeLogGroups",
-          "logs:PutRetentionPolicy",
-          "logs:TagResource"
-        ]
-        Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:AddPermission",
-          "lambda:RemovePermission"
-        ]
-        Resource = "arn:aws:lambda:${var.aws_region}:*:function:${var.lambda_function_name}"
       }
     ]
   })
