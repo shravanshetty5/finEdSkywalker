@@ -121,12 +121,7 @@ test-stocks: ## Run comprehensive stock analysis tests
 	@./scripts/test-stocks.sh
 
 test-stocks-deployed: ## Run stock tests against deployed API
-	@API_URL=$$(cd terraform && terraform output -raw api_gateway_url 2>/dev/null); \
-	if [ -z "$$API_URL" ]; then \
-		echo "Error: API URL not found. Run 'make deploy' first"; \
-		exit 1; \
-	fi; \
-	./scripts/test-stocks.sh AAPL $$API_URL
+	@./scripts/test-aws-stocks.sh
 
 curl-test-deployed: ## Run curl tests against deployed API
 	@echo "Testing deployed endpoints..."
