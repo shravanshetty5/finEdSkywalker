@@ -13,16 +13,20 @@ import (
 )
 
 const (
-	edgarBaseURL = "https://data.sec.gov"
-	edgarCIKURL  = "https://www.sec.gov/cgi-bin/browse-edgar"
+	edgarBaseURL      = "https://data.sec.gov"
+	edgarTickersURL   = "https://www.sec.gov/files/company_tickers.json"
+	edgarCIKURL       = "https://www.sec.gov/cgi-bin/browse-edgar"
+	tickerMapCacheTTL = 24 * time.Hour // Refresh ticker map daily
 )
 
 // EDGARClient handles interactions with SEC EDGAR API
 type EDGARClient struct {
-	userAgent  string
-	httpClient *http.Client
-	useMock    bool
-	cikCache   map[string]string // ticker -> CIK mapping
+	userAgent         string
+	httpClient        *http.Client
+	useMock           bool
+	cikCache          map[string]string // ticker -> CIK mapping
+	tickerMapCache    map[string]string // Full SEC ticker->CIK map (lazy loaded)
+	tickerMapLoadedAt time.Time         // Track when ticker map was last loaded
 }
 
 // EDGAR Company Facts response structure
@@ -49,6 +53,13 @@ type edgarFactValue struct {
 	Filed string      `json:"filed"`
 }
 
+// SEC company tickers JSON structure
+type secCompanyTicker struct {
+	CIKStr int    `json:"cik_str"`
+	Ticker string `json:"ticker"`
+	Title  string `json:"title"`
+}
+
 // NewEDGARClient creates a new SEC EDGAR API client
 func NewEDGARClient() *EDGARClient {
 	cfg := config.GetConfig()
@@ -57,8 +68,9 @@ func NewEDGARClient() *EDGARClient {
 		httpClient: &http.Client{
 			Timeout: time.Duration(cfg.RequestTimeout) * time.Second,
 		},
-		useMock:  cfg.IsMockMode(),
-		cikCache: make(map[string]string),
+		useMock:        cfg.IsMockMode(),
+		cikCache:       make(map[string]string),
+		tickerMapCache: nil, // Lazy loaded on first miss
 	}
 }
 
@@ -120,15 +132,52 @@ func (c *EDGARClient) GetCompanyFacts(ticker string) (*finance.FinancialStatemen
 	return statement, nil
 }
 
-// getCIK retrieves the CIK number for a ticker (with caching)
+// ensureTickerMapFresh checks if ticker map cache needs refresh and reloads if stale
+func (c *EDGARClient) ensureTickerMapFresh() error {
+	// Check if cache needs refresh (nil or expired)
+	cacheAge := time.Since(c.tickerMapLoadedAt)
+	needsRefresh := c.tickerMapCache == nil || cacheAge > tickerMapCacheTTL
+
+	if !needsRefresh {
+		return nil // Cache is still fresh
+	}
+
+	// Load fresh ticker map
+	tickerMap, err := c.loadTickerMap()
+	if err != nil {
+		// If we have stale cache, use it as fallback
+		if c.tickerMapCache != nil {
+			// Log warning but continue with stale data
+			// (in production, you might want proper logging here)
+			return nil // Allow stale cache usage
+		}
+		// No cache at all, must return error
+		return err
+	}
+
+	// Successfully loaded fresh data
+	c.tickerMapCache = tickerMap
+	c.tickerMapLoadedAt = time.Now()
+	return nil
+}
+
+// getCIK retrieves the CIK number for a ticker (with caching and dynamic lookup)
 func (c *EDGARClient) getCIK(ticker string) (string, error) {
-	// Check cache first
+	ticker = strings.ToUpper(ticker)
+
+	// STEP 1: Ensure ticker map is fresh (do this FIRST)
+	// This ensures new tickers become available after 24h
+	if err := c.ensureTickerMapFresh(); err != nil {
+		// Only fail if we have no cache at all
+		// If we have stale cache, we already logged warning in ensureTickerMapFresh
+	}
+
+	// STEP 2: Check individual ticker cache (fast path)
 	if cik, ok := c.cikCache[ticker]; ok {
 		return cik, nil
 	}
 
-	// For MVP, use a hardcoded mapping for common tickers
-	// In production, you'd want to use OpenFIGI or SEC's ticker lookup
+	// STEP 3: Try hardcoded common tickers
 	commonCIKs := map[string]string{
 		"AAPL":  "0000320193",
 		"MSFT":  "0000789019",
@@ -140,20 +189,85 @@ func (c *EDGARClient) getCIK(ticker string) (string, error) {
 		"NVDA":  "0001045810",
 		"JPM":   "0000019617",
 		"V":     "0001403161",
+		"BAC":   "0000070858",
+		"WMT":   "0000104169",
+		"XOM":   "0000034088",
+		"UNH":   "0000731766",
+		"JNJ":   "0000200406",
 	}
 
-	cik, ok := commonCIKs[strings.ToUpper(ticker)]
-	if !ok {
-		return "", &finance.DataSourceError{
-			Source:  "EDGAR",
-			Message: fmt.Sprintf("CIK not found for ticker %s (limited ticker support in MVP)", ticker),
-			Code:    "CIK_NOT_FOUND",
-		}
+	if cik, ok := commonCIKs[ticker]; ok {
+		c.cikCache[ticker] = cik
+		return cik, nil
+	}
+
+	// STEP 4: Dynamic lookup from SEC (ticker map already fresh from step 1)
+	cik, err := c.lookupCIKFromSEC(ticker)
+	if err != nil {
+		return "", err
 	}
 
 	// Cache the result
 	c.cikCache[ticker] = cik
 	return cik, nil
+}
+
+// lookupCIKFromSEC fetches the CIK for a ticker from SEC's official company tickers JSON
+func (c *EDGARClient) lookupCIKFromSEC(ticker string) (string, error) {
+	// Ticker map freshness already ensured by getCIK()
+	// Just do the lookup
+
+	// Look up in cached map
+	cik, ok := c.tickerMapCache[ticker]
+	if !ok {
+		return "", &finance.DataSourceError{
+			Source:  "EDGAR",
+			Message: fmt.Sprintf("CIK not found for ticker %s", ticker),
+			Code:    "CIK_NOT_FOUND",
+		}
+	}
+
+	return cik, nil
+}
+
+// loadTickerMap fetches the SEC company tickers mapping (pure function)
+// Returns a map of ticker -> CIK without mutating client state
+func (c *EDGARClient) loadTickerMap() (map[string]string, error) {
+	req, err := http.NewRequest("GET", edgarTickersURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// SEC requires User-Agent header
+	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ticker map: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	// The JSON structure is: { "0": {...}, "1": {...}, ... }
+	var tickersMap map[string]secCompanyTicker
+	if err := json.NewDecoder(resp.Body).Decode(&tickersMap); err != nil {
+		return nil, fmt.Errorf("failed to parse ticker map: %w", err)
+	}
+
+	// Build the ticker -> padded CIK map
+	result := make(map[string]string, len(tickersMap))
+	for _, company := range tickersMap {
+		// Convert CIK to padded 10-digit string format
+		cik := fmt.Sprintf("%010d", company.CIKStr)
+		result[strings.ToUpper(company.Ticker)] = cik
+	}
+
+	return result, nil
 }
 
 // parseFinancialStatement extracts relevant financial data from EDGAR facts

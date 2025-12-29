@@ -96,8 +96,23 @@ The stock analysis platform aggregates data from three primary sources:
 
 **CIK Lookup**:
 - Companies are identified by CIK (Central Index Key)
-- For MVP, we maintain a mapping of common tickers to CIKs
+- **Automatic Ticker-to-CIK Mapping**: The system now dynamically looks up CIK numbers for any US public company ticker
+- Fast path: Common tickers (AAPL, MSFT, GOOGL, etc.) are cached in memory
+- Fallback: Unknown tickers are automatically looked up from SEC's official company tickers JSON file
+- Source: `https://www.sec.gov/files/company_tickers.json` (updated daily by SEC)
+- **Cache TTL**: Ticker map is automatically refreshed every 24 hours per Lambda instance
+- **Graceful Degradation**: If refresh fails, stale cache is used to maintain availability
 - Example: AAPL → CIK 0000320193
+- **No manual CIK configuration needed** - just provide any valid ticker symbol
+
+**Caching Strategy**:
+- Two-level cache for optimal performance:
+  - **Individual Ticker Cache**: Previously looked-up tickers are cached indefinitely
+  - **Ticker Map Cache**: Full SEC ticker database (~12,000+ companies) cached with 24-hour TTL
+- On each request, the ticker map is checked for freshness before any lookups
+- New IPOs and ticker changes become available within 24 hours of SEC update
+- Lambda cold starts always get fresh data
+- Warm Lambda instances refresh automatically after 24 hours
 
 **Data Taxonomy**:
 - Uses US-GAAP (Generally Accepted Accounting Principles) taxonomy

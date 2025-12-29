@@ -9,6 +9,7 @@ A comprehensive stock analysis platform providing fundamental analysis, DCF valu
 - 💰 **DCF Valuation** - Intrinsic value calculation with customizable assumptions
 - 📈 **Real-time Prices** - Live stock quotes from Finnhub
 - 📄 **SEC Filings** - Official financial data from EDGAR
+- 🔍 **Universal Ticker Support** - Automatic CIK lookup for all US public companies
 - ⚠️ **Graceful Degradation** - Returns partial data with warnings when sources unavailable
 
 ### Infrastructure
