@@ -127,13 +127,18 @@ test-search: ## Run comprehensive ticker search tests
 	@./scripts/test-search.sh
 
 test-search-deployed: ## Run search tests against deployed API
-	@API_URL=$$(cd terraform && terraform output -raw api_gateway_url 2>/dev/null | grep -E "^https?://"); \
-	if [ -z "$$API_URL" ]; then \
-		echo "Error: Could not determine API URL from terraform output"; \
-		echo "Please ensure infrastructure is deployed with 'make deploy'"; \
-		exit 1; \
-	fi; \
-	./scripts/test-search.sh $$API_URL
+	@if [ -n "$$SKYWALKER_API_URL" ]; then \
+		./scripts/test-search.sh $$SKYWALKER_API_URL; \
+	else \
+		API_URL=$$(cd terraform && terraform output -raw api_gateway_url 2>/dev/null | grep -E "^https?://"); \
+		if [ -z "$$API_URL" ]; then \
+			echo "Error: Could not determine API URL from terraform output"; \
+			echo "Please ensure infrastructure is deployed with 'make deploy'"; \
+			echo "Or set SKYWALKER_API_URL environment variable"; \
+			exit 1; \
+		fi; \
+		./scripts/test-search.sh $$API_URL; \
+	fi
 
 curl-test-deployed: ## Run curl tests against deployed API
 	@echo "Testing deployed endpoints..."

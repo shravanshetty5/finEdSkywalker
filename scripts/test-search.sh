@@ -137,14 +137,14 @@ echo -e "${GREEN}================================${NC}"
 echo -e "${GREEN}All tests completed!${NC}"
 echo -e "${GREEN}================================${NC}"
 echo ""
-echo -e "${YELLOW}Try custom searches:${NC}"
-echo "  ./scripts/test-search.sh http://localhost:8080"
-echo ""
-echo -e "${YELLOW}Test against deployed API:${NC}"
-echo "  ./scripts/test-search.sh https://your-api.execute-api.us-east-1.amazonaws.com"
+echo -e "${YELLOW}Usage examples:${NC}"
+echo "  ./scripts/test-search.sh                                      # Test local (http://localhost:8080)"
+echo "  ./scripts/test-search.sh https://your-api-url.com             # Test specific URL"
+echo "  SKYWALKER_API_URL=https://your-api-url.com make test-search  # Via environment variable"
 echo ""
 echo -e "${YELLOW}Quick search test:${NC}"
 echo "  curl -H \"Authorization: Bearer \$TOKEN\" \"$API_URL/api/search/tickers?q=YOUR_QUERY\" | jq"
+
 
 
 

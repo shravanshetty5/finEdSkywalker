@@ -492,9 +492,9 @@ The stock test script (`test-stocks.sh`) validates:
 
 ```bash
 # Test local server
-make test-search              # Uses http://localhost:8080
+make test-search                             # Uses http://localhost:8080
 
-# Test deployed API
+# Test deployed API (uses env variable SKYWALKER_API_URL)
 make test-search-deployed     # Auto-detects deployed URL
 ```
 
