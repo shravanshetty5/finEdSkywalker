@@ -99,16 +99,34 @@ curl-test: ## Run curl tests against local server
 	@echo "1. Health check:"
 	curl -s http://localhost:8080/health | jq .
 	@echo ""
-	@echo "2. List items:"
-	curl -s http://localhost:8080/api/items | jq .
-	@echo ""
-	@echo "3. Get single item:"
-	curl -s http://localhost:8080/api/items/123 | jq .
-	@echo ""
-	@echo "4. Create item:"
-	curl -s -X POST http://localhost:8080/api/items \
+	@echo "2. Login and get token:"
+	@TOKEN=$$(curl -s -X POST http://localhost:8080/auth/login \
 		-H "Content-Type: application/json" \
-		-d '{"name":"Test Item","description":"Created via curl"}' | jq .
+		-d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token'); \
+	echo "Token: $$TOKEN"; \
+	echo ""; \
+	echo "3. Stock fundamentals (AAPL):"; \
+	curl -s http://localhost:8080/api/stocks/AAPL/fundamentals \
+		-H "Authorization: Bearer $$TOKEN" | jq .; \
+	echo ""; \
+	echo "4. Stock valuation (AAPL):"; \
+	curl -s http://localhost:8080/api/stocks/AAPL/valuation \
+		-H "Authorization: Bearer $$TOKEN" | jq .; \
+	echo ""; \
+	echo "5. Comprehensive metrics (AAPL):"; \
+	curl -s http://localhost:8080/api/stocks/AAPL/metrics \
+		-H "Authorization: Bearer $$TOKEN" | jq .
+
+test-stocks: ## Run comprehensive stock analysis tests
+	@./scripts/test-stocks.sh
+
+test-stocks-deployed: ## Run stock tests against deployed API
+	@API_URL=$$(cd terraform && terraform output -raw api_gateway_url 2>/dev/null); \
+	if [ -z "$$API_URL" ]; then \
+		echo "Error: API URL not found. Run 'make deploy' first"; \
+		exit 1; \
+	fi; \
+	./scripts/test-stocks.sh AAPL $$API_URL
 
 curl-test-deployed: ## Run curl tests against deployed API
 	@echo "Testing deployed endpoints..."
@@ -121,16 +139,14 @@ curl-test-deployed: ## Run curl tests against deployed API
 	echo "1. Health check:"; \
 	curl -s $$API_URL/health | jq .; \
 	echo ""; \
-	echo "2. List items:"; \
-	curl -s $$API_URL/api/items | jq .; \
-	echo ""; \
-	echo "3. Get single item:"; \
-	curl -s $$API_URL/api/items/123 | jq .; \
-	echo ""; \
-	echo "4. Create item:"; \
-	curl -s -X POST $$API_URL/api/items \
+	echo "2. Login:"; \
+	TOKEN=$$(curl -s -X POST $$API_URL/auth/login \
 		-H "Content-Type: application/json" \
-		-d '{"name":"Test Item","description":"Created via curl"}' | jq .
+		-d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token'); \
+	echo "Token obtained: $$TOKEN"; \
+	echo ""; \
+	echo "3. Stock fundamentals:"; \
+	curl -s -H "Authorization: Bearer $$TOKEN" $$API_URL/api/stocks/AAPL/fundamentals | jq .
 
 logs: ## Tail Lambda logs (requires AWS CLI)
 	@FUNCTION_NAME=$$(cd terraform && terraform output -raw lambda_function_name 2>/dev/null); \

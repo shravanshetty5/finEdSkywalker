@@ -65,6 +65,25 @@ variable "jwt_secret" {
   default     = ""
 }
 
+variable "finnhub_api_key" {
+  description = "Finnhub API key for real-time stock data"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "edgar_user_agent" {
+  description = "User-Agent string for SEC EDGAR API requests (required by SEC)"
+  type        = string
+  default     = "finEdSkywalker/1.0 (contact@example.com)"
+}
+
+variable "use_mock_data" {
+  description = "Enable mock data mode for testing without API keys"
+  type        = string
+  default     = "false"
+}
+
 variable "api_throttle_burst_limit" {
   description = "Maximum concurrent requests allowed (burst)"
   type        = number

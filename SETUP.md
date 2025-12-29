@@ -32,26 +32,46 @@ This is a **one-time setup** that creates the foundational resources.
 
 ## Step 2: Deploy Initial Infrastructure
 
-**Important:** You need to set a JWT secret before deploying!
+**Important:** You need to set API keys and secrets before deploying!
 
 ```bash
-# Generate a secure JWT secret
+# 1. Generate a secure JWT secret
 export JWT_SECRET=$(openssl rand -base64 32)
-
-# IMPORTANT: Save this secret securely!
 echo "Your JWT Secret: $JWT_SECRET"
 echo "Save this in a password manager or secure location"
 
-# Deploy with Terraform
+# 2. Get a free Finnhub API key
+# Visit https://finnhub.io/register
+# Sign up and get your API key
+export FINNHUB_API_KEY="your_finnhub_api_key_here"
+
+# 3. Set EDGAR User-Agent (required by SEC)
+# Use your actual email - SEC may contact you if there are issues
+export EDGAR_USER_AGENT="finEdSkywalker/1.0 (your-email@example.com)"
+
+# 4. Deploy with Terraform
 cd terraform
 terraform init
+
+# Set all required variables
 export TF_VAR_jwt_secret="$JWT_SECRET"
+export TF_VAR_finnhub_api_key="$FINNHUB_API_KEY"
+export TF_VAR_edgar_user_agent="$EDGAR_USER_AGENT"
+
 terraform plan
 terraform apply
 ```
 
+**Optional: Mock Data Mode**
+
+For testing without API keys:
+
+```bash
+export TF_VAR_use_mock_data="true"
+```
+
 This creates:
-- Lambda function (with JWT_SECRET environment variable)
+- Lambda function (with all environment variables)
 - API Gateway
 - IAM roles
 - CloudWatch log groups
@@ -70,7 +90,7 @@ Add these secrets to your GitHub repository:
 
 1. Go to: `https://github.com/YOUR_ORG/finEdSkywalker/settings/secrets/actions`
 2. Click "New repository secret"
-3. Add **two secrets**:
+3. Add **four secrets**:
 
    **Secret 1: AWS_ROLE_ARN**
    - Name: `AWS_ROLE_ARN`
@@ -79,6 +99,14 @@ Add these secrets to your GitHub repository:
    **Secret 2: JWT_SECRET**
    - Name: `JWT_SECRET`
    - Value: (paste the JWT secret you generated in Step 2)
+   
+   **Secret 3: FINNHUB_API_KEY**
+   - Name: `FINNHUB_API_KEY`
+   - Value: (paste your Finnhub API key)
+   
+   **Secret 4: EDGAR_USER_AGENT**
+   - Name: `EDGAR_USER_AGENT`
+   - Value: `finEdSkywalker/1.0 (your-email@example.com)`
 
 That's it! No AWS access keys needed. ✨
 

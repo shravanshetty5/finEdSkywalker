@@ -1,17 +1,24 @@
 # finEdSkywalker
 
-A production-ready GoLang AWS Lambda function with HTTP API Gateway integration, remote state management, OIDC authentication, and automated CI/CD.
+A comprehensive stock analysis platform providing fundamental analysis, DCF valuation, and investment insights through a serverless Go API on AWS Lambda.
 
 ## Features
 
+### Stock Analysis
+- 📊 **Fundamental Scorecard** - "Big 5" metrics: P/E, Debt/Equity, FCF Yield, PEG, ROE
+- 💰 **DCF Valuation** - Intrinsic value calculation with customizable assumptions
+- 📈 **Real-time Prices** - Live stock quotes from Finnhub
+- 📄 **SEC Filings** - Official financial data from EDGAR
+- ⚠️ **Graceful Degradation** - Returns partial data with warnings when sources unavailable
+
+### Infrastructure
 - 🚀 **AWS Lambda** - Serverless Go function running on ARM64 Graviton2
 - 🌐 **API Gateway** - HTTP API with automatic CORS support
-- 🔐 **JWT Authentication** - Secure token-based authentication for API endpoints
+- 🔐 **JWT Authentication** - Secure token-based authentication
 - 🏠 **Local Development** - Test endpoints locally without deploying
 - 🔧 **Terraform** - Infrastructure as Code with remote state + locking
 - 🔒 **OIDC Security** - No long-lived AWS keys, GitHub → AWS via OpenID Connect
-- 🤖 **Smart CI/CD** - Separate workflows for infrastructure and code
-- 📦 **S3-backed Lambda** - Terraform manages code deployment via S3
+- 🤖 **Smart CI/CD** - Automated deployments via GitHub Actions
 
 ## Architecture
 
@@ -73,17 +80,21 @@ sequenceDiagram
 Run the API locally on your machine:
 
 ```bash
-# Set JWT secret for authentication
+# Set required environment variables
 export JWT_SECRET="test-secret-key-for-development-only"
+export FINNHUB_API_KEY="your_finnhub_api_key"  # Get free key at finnhub.io
+export EDGAR_USER_AGENT="finEdSkywalker/1.0 (your-email@example.com)"
+
+# Or use mock data mode (no API keys required)
+export USE_MOCK_DATA=true
 
 # Start local server
 make run-local
 
-# In another terminal, test endpoints
-make curl-test
-
-# Test authentication
-./scripts/test-auth.sh
+# Test stock analysis endpoints
+curl http://localhost:8080/api/stocks/AAPL/fundamentals
+curl http://localhost:8080/api/stocks/AAPL/valuation
+curl http://localhost:8080/api/stocks/AAPL/metrics
 ```
 
 ### Production Deployment
@@ -118,7 +129,7 @@ git push origin master
 
 ## Available Endpoints
 
-### Public Endpoints (No Authentication Required)
+### Authentication Endpoints (Public)
 
 | Method | Endpoint          | Description           |
 |--------|-------------------|-----------------------|
@@ -126,15 +137,45 @@ git push origin master
 | POST   | `/auth/login`     | User authentication   |
 | POST   | `/auth/refresh`   | Refresh JWT token     |
 
-### Protected Endpoints (JWT Authentication Required)
+### Stock Analysis Endpoints (Protected - JWT Required)
 
-| Method | Endpoint          | Description           | Auth Required |
-|--------|-------------------|-----------------------|---------------|
-| GET    | `/api/items`      | List all items        | ✅ Yes        |
-| GET    | `/api/items/{id}` | Get single item by ID | ✅ Yes        |
-| POST   | `/api/items`      | Create new item       | ✅ Yes        |
+| Method | Endpoint                              | Description                                    |
+|--------|---------------------------------------|------------------------------------------------|
+| GET    | `/api/stocks/{ticker}/fundamentals`   | Big 5 fundamental scorecard                    |
+| GET    | `/api/stocks/{ticker}/valuation`      | DCF intrinsic value calculation                |
+| GET    | `/api/stocks/{ticker}/metrics`        | Comprehensive analysis (fundamentals + DCF)    |
 
-**Authentication:** Include JWT token in the Authorization header:
+**Example Requests:**
+
+```bash
+# First, login to get JWT token
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+
+# Get fundamental scorecard for Apple
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/stocks/AAPL/fundamentals
+
+# Get DCF valuation with custom assumptions
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8080/api/stocks/AAPL/valuation?revenue_growth=0.10&discount_rate=0.12"
+
+# Get comprehensive metrics
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/stocks/AAPL/metrics
+```
+
+**Query Parameters for Valuation:**
+- `revenue_growth` - Expected annual revenue growth rate (e.g., 0.08 for 8%)
+- `profit_margin` - Expected profit margin (e.g., 0.15 for 15%)
+- `fcf_margin` - Free cash flow margin (e.g., 0.12 for 12%)
+- `discount_rate` - Required rate of return (e.g., 0.10 for 10%)
+- `terminal_growth` - Perpetual growth rate (e.g., 0.025 for 2.5%)
+
+See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for detailed API documentation.
+
+**Authentication:** All protected endpoints require a JWT token in the Authorization header:
 ```bash
 Authorization: Bearer <your-jwt-token>
 ```
@@ -152,13 +193,17 @@ finEdSkywalker/
 │   ├── local/           # Local development server
 │   └── hashgen/         # Password hash generator tool
 ├── internal/
-│   ├── handlers/        # API handlers
-│   └── auth/            # Authentication & JWT logic
+│   ├── handlers/        # API handlers (stocks.go, auth.go, api.go)
+│   ├── auth/            # Authentication & JWT logic
+│   ├── finance/         # Financial data models
+│   ├── datasources/     # External API clients (Finnhub, EDGAR, OpenFIGI)
+│   ├── calculator/      # Valuation & metrics calculators
+│   └── config/          # Configuration management
 ├── terraform/           # Infrastructure as Code
 ├── .github/workflows/   # CI/CD pipeline
 ├── docs/                # Documentation
-│   ├── AUTHENTICATION.md       # Auth guide
-│   └── AUTH_IMPLEMENTATION.md  # Implementation details
+│   ├── AUTHENTICATION.md    # Auth guide
+│   └── DATA_SOURCES.md      # API data sources documentation
 ├── scripts/             # Utility scripts
 │   ├── bootstrap.sh     # AWS setup
 │   └── test-auth.sh     # Auth testing

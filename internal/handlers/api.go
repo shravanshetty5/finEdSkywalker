@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
 
@@ -20,12 +19,6 @@ type Response struct {
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
-}
-
-// CreateRequest represents a sample POST request
-type CreateRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
 }
 
 // Handler is the main API Gateway proxy handler
@@ -48,13 +41,13 @@ func Handler(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPRes
 	case path == "/auth/refresh" && method == "POST":
 		return handleRefreshToken(request)
 
-	// Protected routes (authentication required)
-	case path == "/api/items" && method == "GET":
-		return auth.RequireAuth(handleListItemsAuth)(request)
-	case path == "/api/items" && method == "POST":
-		return auth.RequireAuth(handleCreateItemAuth)(request)
-	case strings.HasPrefix(path, "/api/items/") && method == "GET":
-		return auth.RequireAuth(handleGetItemAuth)(request)
+	// Stock analysis routes (authentication required)
+	case strings.HasPrefix(path, "/api/stocks/") && strings.HasSuffix(path, "/fundamentals") && method == "GET":
+		return auth.RequireAuth(handleStockFundamentalsAuth)(request)
+	case strings.HasPrefix(path, "/api/stocks/") && strings.HasSuffix(path, "/valuation") && method == "GET":
+		return auth.RequireAuth(handleStockValuationAuth)(request)
+	case strings.HasPrefix(path, "/api/stocks/") && strings.HasSuffix(path, "/metrics") && method == "GET":
+		return auth.RequireAuth(handleStockMetricsAuth)(request)
 	default:
 		return notFound()
 	}
@@ -72,97 +65,6 @@ func handleHealth(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HT
 	}
 
 	return jsonResponse(200, resp)
-}
-
-// handleListItems returns a list of items
-func handleListItems(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	// Sample data - in production, this would come from a database
-	items := []map[string]interface{}{
-		{"id": "1", "name": "Item 1", "description": "First item"},
-		{"id": "2", "name": "Item 2", "description": "Second item"},
-	}
-
-	resp := Response{
-		Message: "Items retrieved successfully",
-		Data:    items,
-	}
-
-	return jsonResponse(200, resp)
-}
-
-// handleListItemsAuth is the authenticated version of handleListItems
-func handleListItemsAuth(request events.APIGatewayV2HTTPRequest, authCtx *auth.AuthContext) (events.APIGatewayV2HTTPResponse, error) {
-	log.Printf("User %s (%s) accessing items list", authCtx.Username, authCtx.UserID)
-	return handleListItems(request)
-}
-
-// handleCreateItem creates a new item
-func handleCreateItem(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	var createReq CreateRequest
-
-	if err := json.Unmarshal([]byte(request.Body), &createReq); err != nil {
-		return errorResponse(400, "Invalid request body", err.Error())
-	}
-
-	// Validate request
-	if createReq.Name == "" {
-		return errorResponse(400, "Validation failed", "Name is required")
-	}
-
-	// In production, you would save to a database here
-	item := map[string]interface{}{
-		"id":          "3",
-		"name":        createReq.Name,
-		"description": createReq.Description,
-	}
-
-	resp := Response{
-		Message: "Item created successfully",
-		Data:    item,
-	}
-
-	return jsonResponse(201, resp)
-}
-
-// handleCreateItemAuth is the authenticated version of handleCreateItem
-func handleCreateItemAuth(request events.APIGatewayV2HTTPRequest, authCtx *auth.AuthContext) (events.APIGatewayV2HTTPResponse, error) {
-	log.Printf("User %s (%s) creating new item", authCtx.Username, authCtx.UserID)
-	return handleCreateItem(request)
-}
-
-// handleGetItem returns a single item by ID
-func handleGetItem(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	// Extract ID from path
-	parts := strings.Split(request.RawPath, "/")
-	if len(parts) < 4 {
-		return errorResponse(400, "Invalid request", "Item ID is required")
-	}
-	itemID := parts[3]
-
-	// In production, you would fetch from a database
-	item := map[string]interface{}{
-		"id":          itemID,
-		"name":        fmt.Sprintf("Item %s", itemID),
-		"description": "Sample item",
-	}
-
-	resp := Response{
-		Message: "Item retrieved successfully",
-		Data:    item,
-	}
-
-	return jsonResponse(200, resp)
-}
-
-// handleGetItemAuth is the authenticated version of handleGetItem
-func handleGetItemAuth(request events.APIGatewayV2HTTPRequest, authCtx *auth.AuthContext) (events.APIGatewayV2HTTPResponse, error) {
-	parts := strings.Split(request.RawPath, "/")
-	itemID := ""
-	if len(parts) >= 4 {
-		itemID = parts[3]
-	}
-	log.Printf("User %s (%s) accessing item %s", authCtx.Username, authCtx.UserID, itemID)
-	return handleGetItem(request)
 }
 
 // jsonResponse creates a successful JSON response
