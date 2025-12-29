@@ -67,7 +67,6 @@ type TickerData struct {
 	CIK         string
 }
 
-
 // NewEDGARClient creates a new SEC EDGAR API client
 func NewEDGARClient() *EDGARClient {
 	cfg := config.GetConfig()
@@ -295,7 +294,6 @@ func (c *EDGARClient) loadTickerMap() (map[string]string, error) {
 
 	return result, nil
 }
-
 
 // parseFinancialStatement extracts relevant financial data from EDGAR facts
 func (c *EDGARClient) parseFinancialStatement(facts *edgarCompanyFacts) *finance.FinancialStatement {

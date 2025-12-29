@@ -61,5 +61,3 @@ func handleTickerSearch(request events.APIGatewayV2HTTPRequest) (events.APIGatew
 
 	return jsonResponse(200, response)
 }
-
-

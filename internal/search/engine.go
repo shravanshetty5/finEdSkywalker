@@ -110,4 +110,3 @@ func (e *SearchEngine) prefixSearch(queryUpper string, limit int) []SearchResult
 
 	return results
 }
-

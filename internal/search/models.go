@@ -20,4 +20,3 @@ type SearchResponse struct {
 	Results []SearchResult `json:"results"`
 	Total   int            `json:"total"`
 }
-
