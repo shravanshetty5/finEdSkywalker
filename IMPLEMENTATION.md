@@ -6,12 +6,14 @@
 - **Fundamental Analysis**: Big 5 metrics (P/E, Debt/Equity, FCF Yield, PEG, ROE)
 - **DCF Valuation**: 5-year discounted cash flow model with customizable assumptions
 - **Multi-source Data Aggregation**: Finnhub, SEC EDGAR, OpenFIGI
+- **Ticker Search**: Fast fuzzy search autocomplete for 12,000+ US stocks
 - **Graceful Degradation**: Returns partial data with warnings when sources unavailable
 
 ### API Endpoints
-1. `GET /api/stocks/{ticker}/fundamentals` - Fundamental scorecard
-2. `GET /api/stocks/{ticker}/valuation` - DCF intrinsic value
-3. `GET /api/stocks/{ticker}/metrics` - Comprehensive analysis
+1. `GET /api/stocks/{ticker}/fundamentals` - Fundamental scorecard (Protected)
+2. `GET /api/stocks/{ticker}/valuation` - DCF intrinsic value (Protected)
+3. `GET /api/stocks/{ticker}/metrics` - Comprehensive analysis (Protected)
+4. `GET /api/search/tickers?q={query}` - Ticker search autocomplete (Protected)
 
 ### Data Sources
 - **Finnhub**: Real-time prices, company profiles
@@ -33,15 +35,19 @@ internal/
 │   └── models.go              # Data structures (StockQuote, FinancialStatement, etc.)
 ├── datasources/
 │   ├── finnhub.go             # Finnhub API client
-│   ├── edgar.go               # SEC EDGAR client
+│   ├── edgar.go               # SEC EDGAR client (with ticker search support)
 │   └── openfigi.go            # OpenFIGI client
 ├── calculator/
 │   ├── scorecard.go           # Big 5 metrics calculator
 │   └── dcf.go                 # DCF valuation engine
 ├── config/
 │   └── config.go              # Environment configuration
+├── search/
+│   ├── models.go              # Search data structures
+│   └── engine.go              # Fuzzy search engine (sahilm/fuzzy)
 └── handlers/
-    └── stocks.go              # Stock analysis HTTP handlers
+    ├── stocks.go              # Stock analysis HTTP handlers
+    └── search.go              # Ticker search handler
 ```
 
 ### Documentation

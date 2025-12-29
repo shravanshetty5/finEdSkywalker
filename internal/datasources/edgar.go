@@ -60,6 +60,14 @@ type secCompanyTicker struct {
 	Title  string `json:"title"`
 }
 
+// TickerData represents a ticker with its company info
+type TickerData struct {
+	Ticker      string
+	CompanyName string
+	CIK         string
+}
+
+
 // NewEDGARClient creates a new SEC EDGAR API client
 func NewEDGARClient() *EDGARClient {
 	cfg := config.GetConfig()
@@ -230,21 +238,20 @@ func (c *EDGARClient) lookupCIKFromSEC(ticker string) (string, error) {
 	return cik, nil
 }
 
-// loadTickerMap fetches the SEC company tickers mapping (pure function)
-// Returns a map of ticker -> CIK without mutating client state
-func (c *EDGARClient) loadTickerMap() (map[string]string, error) {
+// LoadAllTickers fetches all tickers with company names from SEC
+// This is the canonical data fetcher used by both search and CIK lookup
+func (c *EDGARClient) LoadAllTickers() ([]TickerData, error) {
 	req, err := http.NewRequest("GET", edgarTickersURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// SEC requires User-Agent header
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch ticker map: %w", err)
+		return nil, fmt.Errorf("failed to fetch ticker list: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -253,22 +260,42 @@ func (c *EDGARClient) loadTickerMap() (map[string]string, error) {
 		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
-	// The JSON structure is: { "0": {...}, "1": {...}, ... }
+	// Parse SEC response: { "0": {...}, "1": {...}, ... }
 	var tickersMap map[string]secCompanyTicker
 	if err := json.NewDecoder(resp.Body).Decode(&tickersMap); err != nil {
-		return nil, fmt.Errorf("failed to parse ticker map: %w", err)
+		return nil, fmt.Errorf("failed to parse ticker list: %w", err)
 	}
 
-	// Build the ticker -> padded CIK map
-	result := make(map[string]string, len(tickersMap))
+	// Convert to our format
+	result := make([]TickerData, 0, len(tickersMap))
 	for _, company := range tickersMap {
-		// Convert CIK to padded 10-digit string format
-		cik := fmt.Sprintf("%010d", company.CIKStr)
-		result[strings.ToUpper(company.Ticker)] = cik
+		result = append(result, TickerData{
+			Ticker:      strings.ToUpper(company.Ticker),
+			CompanyName: company.Title,
+			CIK:         fmt.Sprintf("%010d", company.CIKStr),
+		})
 	}
 
 	return result, nil
 }
+
+// loadTickerMap fetches ticker data and converts it to a map for CIK lookup
+// This is a convenience wrapper around LoadAllTickers for internal caching
+func (c *EDGARClient) loadTickerMap() (map[string]string, error) {
+	tickers, err := c.LoadAllTickers()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert slice to map for fast lookup
+	result := make(map[string]string, len(tickers))
+	for _, ticker := range tickers {
+		result[ticker.Ticker] = ticker.CIK
+	}
+
+	return result, nil
+}
+
 
 // parseFinancialStatement extracts relevant financial data from EDGAR facts
 func (c *EDGARClient) parseFinancialStatement(facts *edgarCompanyFacts) *finance.FinancialStatement {

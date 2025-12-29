@@ -10,6 +10,7 @@ A comprehensive stock analysis platform providing fundamental analysis, DCF valu
 - 📈 **Real-time Prices** - Live stock quotes from Finnhub
 - 📄 **SEC Filings** - Official financial data from EDGAR
 - 🔍 **Universal Ticker Support** - Automatic CIK lookup for all US public companies
+- 🔎 **Ticker Search** - Fast fuzzy search autocomplete for 12,000+ US stocks
 - ⚠️ **Graceful Degradation** - Returns partial data with warnings when sources unavailable
 
 ### Infrastructure
@@ -145,6 +146,18 @@ git push origin master
 | GET    | `/api/stocks/{ticker}/fundamentals`   | Big 5 fundamental scorecard                    |
 | GET    | `/api/stocks/{ticker}/valuation`      | DCF intrinsic value calculation                |
 | GET    | `/api/stocks/{ticker}/metrics`        | Comprehensive analysis (fundamentals + DCF)    |
+| GET    | `/api/search/tickers?q={query}`       | Fuzzy search for stock tickers                 |
+
+**Search Query Parameters:**
+- `q` (required) - Search query (ticker symbol or company name)
+- `limit` (optional) - Max results, default 10, max 50
+
+**Valuation Query Parameters:**
+- `revenue_growth` - Expected annual revenue growth rate (e.g., 0.08 for 8%)
+- `profit_margin` - Expected profit margin (e.g., 0.15 for 15%)
+- `fcf_margin` - Free cash flow margin (e.g., 0.12 for 12%)
+- `discount_rate` - Required rate of return (e.g., 0.10 for 10%)
+- `terminal_growth` - Perpetual growth rate (e.g., 0.025 for 2.5%)
 
 **Example Requests:**
 
@@ -165,23 +178,19 @@ curl -H "Authorization: Bearer $TOKEN" \
 # Get comprehensive metrics
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:8080/api/stocks/AAPL/metrics
+
+# Search for stocks
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8080/api/search/tickers?q=appl&limit=5"
 ```
-
-**Query Parameters for Valuation:**
-- `revenue_growth` - Expected annual revenue growth rate (e.g., 0.08 for 8%)
-- `profit_margin` - Expected profit margin (e.g., 0.15 for 15%)
-- `fcf_margin` - Free cash flow margin (e.g., 0.12 for 12%)
-- `discount_rate` - Required rate of return (e.g., 0.10 for 10%)
-- `terminal_growth` - Perpetual growth rate (e.g., 0.025 for 2.5%)
-
-See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for detailed API documentation.
 
 **Authentication:** All protected endpoints require a JWT token in the Authorization header:
 ```bash
 Authorization: Bearer <your-jwt-token>
 ```
 
-See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for detailed authentication guide.
+See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for detailed API documentation.
+See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for authentication guide.
 
 ## Development
 
@@ -207,7 +216,10 @@ finEdSkywalker/
 │   └── DATA_SOURCES.md      # API data sources documentation
 ├── scripts/             # Utility scripts
 │   ├── bootstrap.sh     # AWS setup
-│   └── test-auth.sh     # Auth testing
+│   ├── test-auth.sh     # Auth testing
+│   ├── test-stocks.sh   # Stock analysis endpoint tests
+│   ├── test-search.sh   # Ticker search endpoint tests
+│   └── test-aws-stocks.sh # Deployed API testing
 ├── Makefile            # Build automation
 └── go.mod              # Go dependencies
 ```
@@ -450,6 +462,76 @@ This setup uses cost-effective AWS services:
 - **Free tier eligible** - First 1M requests/month free
 
 Estimated cost: **$0-5/month** for low to moderate traffic.
+
+## Testing
+
+The project includes comprehensive test scripts for both local and deployed endpoints.
+
+### Test Scripts
+
+#### Stock Analysis Tests
+
+```bash
+# Test local server
+make test-stocks              # Uses http://localhost:8080
+./scripts/test-stocks.sh MSFT # Test specific ticker
+
+# Test deployed API
+make test-stocks-deployed     # Auto-detects deployed URL
+```
+
+The stock test script (`test-stocks.sh`) validates:
+- ✅ Authentication flow (login + JWT)
+- ✅ Fundamental scorecard endpoint
+- ✅ DCF valuation with defaults
+- ✅ DCF valuation with custom parameters
+- ✅ Comprehensive metrics endpoint
+- ✅ Authentication error handling
+
+#### Ticker Search Tests
+
+```bash
+# Test local server
+make test-search              # Uses http://localhost:8080
+
+# Test deployed API
+make test-search-deployed     # Auto-detects deployed URL
+```
+
+The search test script (`test-search.sh`) validates:
+- ✅ Single letter search
+- ✅ Common ticker lookup
+- ✅ Partial match (fuzzy search)
+- ✅ Company name search
+- ✅ Custom limit parameter
+- ✅ Case insensitive search
+- ✅ Multiple results
+- ✅ Edge cases (empty query, missing param, long query, max limit)
+- ✅ Authentication requirement
+
+#### Authentication Tests
+
+```bash
+./scripts/test-auth.sh        # Comprehensive auth tests
+```
+
+### Quick Manual Tests
+
+```bash
+# Local testing
+go run cmd/local/main.go &    # Start server in background
+make curl-test                # Run quick curl tests
+
+# Deployed testing
+make curl-test-deployed       # Test live API
+```
+
+### Running Go Tests
+
+```bash
+make test                     # Run unit tests
+make coverage                 # View test coverage
+```
 
 ## Troubleshooting
 

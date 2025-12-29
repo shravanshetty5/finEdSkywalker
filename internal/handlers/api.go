@@ -41,6 +41,10 @@ func Handler(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPRes
 	case path == "/auth/refresh" && method == "POST":
 		return handleRefreshToken(request)
 
+	// Search routes (protected - authentication required)
+	case strings.HasPrefix(path, "/api/search/tickers") && method == "GET":
+		return auth.RequireAuth(handleTickerSearchAuth)(request)
+
 	// Stock analysis routes (authentication required)
 	case strings.HasPrefix(path, "/api/stocks/") && strings.HasSuffix(path, "/fundamentals") && method == "GET":
 		return auth.RequireAuth(handleStockFundamentalsAuth)(request)
