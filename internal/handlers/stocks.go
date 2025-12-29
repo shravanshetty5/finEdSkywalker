@@ -98,7 +98,7 @@ func handleStockFundamentalsAuth(request events.APIGatewayV2HTTPRequest, authCtx
 		return errorResponse(400, "Invalid request", "Ticker symbol is required")
 	}
 	ticker := strings.ToUpper(parts[3])
-	
+
 	log.Printf("User %s (%s) requesting fundamentals for %s", authCtx.Username, authCtx.UserID, ticker)
 	return handleStockFundamentals(request)
 }
@@ -146,7 +146,7 @@ func handleStockValuationAuth(request events.APIGatewayV2HTTPRequest, authCtx *a
 		return errorResponse(400, "Invalid request", "Ticker symbol is required")
 	}
 	ticker := strings.ToUpper(parts[3])
-	
+
 	log.Printf("User %s (%s) requesting valuation for %s", authCtx.Username, authCtx.UserID, ticker)
 	return handleStockValuation(request)
 }
@@ -200,7 +200,7 @@ func handleStockMetricsAuth(request events.APIGatewayV2HTTPRequest, authCtx *aut
 		return errorResponse(400, "Invalid request", "Ticker symbol is required")
 	}
 	ticker := strings.ToUpper(parts[3])
-	
+
 	log.Printf("User %s (%s) requesting metrics for %s", authCtx.Username, authCtx.UserID, ticker)
 	return handleStockMetrics(request)
 }
@@ -318,4 +318,3 @@ func parseJSONBody(body string, target interface{}) error {
 	}
 	return json.Unmarshal([]byte(body), target)
 }
-

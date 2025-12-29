@@ -9,13 +9,13 @@ import (
 // Config holds all application configuration
 type Config struct {
 	// API Keys
-	FinnhubAPIKey string
+	FinnhubAPIKey  string
 	EDGARUserAgent string
-	JWTSecret     string
-	
+	JWTSecret      string
+
 	// Feature Flags
 	UseMockData bool
-	
+
 	// API Settings
 	RequestTimeout int // seconds
 }
@@ -32,29 +32,29 @@ func Load() (*Config, error) {
 		UseMockData:    strings.ToLower(os.Getenv("USE_MOCK_DATA")) == "true",
 		RequestTimeout: 10, // default 10 seconds
 	}
-	
+
 	// Validate required configuration
 	var missingVars []string
-	
+
 	if config.JWTSecret == "" {
 		missingVars = append(missingVars, "JWT_SECRET")
 	}
-	
+
 	// EDGAR User-Agent is required by SEC (they block requests without it)
 	if config.EDGARUserAgent == "" {
 		// Provide a helpful default if not set
 		config.EDGARUserAgent = "finEdSkywalker/1.0"
 	}
-	
+
 	// Finnhub API key is optional if using mock data
 	if config.FinnhubAPIKey == "" && !config.UseMockData {
 		missingVars = append(missingVars, "FINNHUB_API_KEY (or set USE_MOCK_DATA=true)")
 	}
-	
+
 	if len(missingVars) > 0 {
 		return nil, fmt.Errorf("missing required environment variables: %s", strings.Join(missingVars, ", "))
 	}
-	
+
 	AppConfig = config
 	return config, nil
 }
@@ -82,11 +82,11 @@ func (c *Config) Validate() error {
 	if c.JWTSecret == "" {
 		return fmt.Errorf("JWT_SECRET is required")
 	}
-	
+
 	if c.FinnhubAPIKey == "" && !c.UseMockData {
 		return fmt.Errorf("FINNHUB_API_KEY is required (or enable mock data mode)")
 	}
-	
+
 	return nil
 }
 
@@ -94,4 +94,3 @@ func (c *Config) Validate() error {
 func (c *Config) IsMockMode() bool {
 	return c.UseMockData
 }
-

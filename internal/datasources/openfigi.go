@@ -24,24 +24,24 @@ type OpenFIGIClient struct {
 
 // OpenFIGI API structures
 type openFIGIRequest struct {
-	IDType string `json:"idType"`
+	IDType  string `json:"idType"`
 	IDValue string `json:"idValue"`
 }
 
 type openFIGIResponse struct {
-	Data []openFIGIData `json:"data"`
+	Data  []openFIGIData `json:"data"`
 	Error string         `json:"error,omitempty"`
 }
 
 type openFIGIData struct {
-	FIGI            string `json:"figi"`
-	SecurityType    string `json:"securityType"`
-	MarketSector    string `json:"marketSector"`
-	Ticker          string `json:"ticker"`
-	Name            string `json:"name"`
-	ExchangeCode    string `json:"exchCode"`
-	CompositeFIGI   string `json:"compositeFIGI"`
-	SecurityType2   string `json:"securityType2"`
+	FIGI          string `json:"figi"`
+	SecurityType  string `json:"securityType"`
+	MarketSector  string `json:"marketSector"`
+	Ticker        string `json:"ticker"`
+	Name          string `json:"name"`
+	ExchangeCode  string `json:"exchCode"`
+	CompositeFIGI string `json:"compositeFIGI"`
+	SecurityType2 string `json:"securityType2"`
 }
 
 // NewOpenFIGIClient creates a new OpenFIGI API client
@@ -79,7 +79,7 @@ func (c *OpenFIGIClient) SearchTicker(ticker string) (*openFIGIData, error) {
 
 	// OpenFIGI API endpoint for mapping
 	endpoint := fmt.Sprintf("%s/mapping", openFIGIBaseURL)
-	
+
 	// Create request body
 	reqBody := []openFIGIRequest{
 		{
@@ -105,7 +105,7 @@ func (c *OpenFIGIClient) SearchTicker(ticker string) (*openFIGIData, error) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, &finance.DataSourceError{
@@ -172,4 +172,3 @@ func (c *OpenFIGIClient) getMockFIGI(ticker string) (string, string, error) {
 
 	return data.FIGI, data.Name, nil
 }
-

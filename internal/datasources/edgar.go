@@ -27,14 +27,14 @@ type EDGARClient struct {
 
 // EDGAR Company Facts response structure
 type edgarCompanyFacts struct {
-	CIK        json.Number                  `json:"cik"` // Can be string or number from API
-	EntityName string                       `json:"entityName"`
+	CIK        json.Number                     `json:"cik"` // Can be string or number from API
+	EntityName string                          `json:"entityName"`
 	Facts      map[string]map[string]edgarFact `json:"facts"`
 }
 
 type edgarFact struct {
-	Label       string           `json:"label"`
-	Description string           `json:"description"`
+	Label       string                      `json:"label"`
+	Description string                      `json:"description"`
 	Units       map[string][]edgarFactValue `json:"units"`
 }
 
@@ -76,7 +76,7 @@ func (c *EDGARClient) GetCompanyFacts(ticker string) (*finance.FinancialStatemen
 
 	// Fetch company facts
 	endpoint := fmt.Sprintf("%s/api/xbrl/companyfacts/CIK%s.json", edgarBaseURL, cik)
-	
+
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, &finance.DataSourceError{
@@ -84,11 +84,11 @@ func (c *EDGARClient) GetCompanyFacts(ticker string) (*finance.FinancialStatemen
 			Message: fmt.Sprintf("failed to create request: %v", err),
 		}
 	}
-	
+
 	// SEC requires User-Agent header
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
-	
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, &finance.DataSourceError{
@@ -130,16 +130,16 @@ func (c *EDGARClient) getCIK(ticker string) (string, error) {
 	// For MVP, use a hardcoded mapping for common tickers
 	// In production, you'd want to use OpenFIGI or SEC's ticker lookup
 	commonCIKs := map[string]string{
-		"AAPL": "0000320193",
-		"MSFT": "0000789019",
+		"AAPL":  "0000320193",
+		"MSFT":  "0000789019",
 		"GOOGL": "0001652044",
-		"GOOG": "0001652044",
-		"AMZN": "0001018724",
-		"TSLA": "0001318605",
-		"META": "0001326801",
-		"NVDA": "0001045810",
-		"JPM":  "0000019617",
-		"V":    "0001403161",
+		"GOOG":  "0001652044",
+		"AMZN":  "0001018724",
+		"TSLA":  "0001318605",
+		"META":  "0001326801",
+		"NVDA":  "0001045810",
+		"JPM":   "0000019617",
+		"V":     "0001403161",
 	}
 
 	cik, ok := commonCIKs[strings.ToUpper(ticker)]
@@ -172,12 +172,12 @@ func (c *EDGARClient) parseFinancialStatement(facts *edgarCompanyFacts) *finance
 	if statement.Revenue == 0 {
 		statement.Revenue = c.getLatestValue(usGAAP, "RevenueFromContractWithCustomerExcludingAssessedTax")
 	}
-	
+
 	statement.NetIncome = c.getLatestValue(usGAAP, "NetIncomeLoss")
 	statement.TotalAssets = c.getLatestValue(usGAAP, "Assets")
 	statement.TotalLiabilities = c.getLatestValue(usGAAP, "Liabilities")
 	statement.ShareholdersEquity = c.getLatestValue(usGAAP, "StockholdersEquity")
-	
+
 	// Debt metrics
 	longTermDebt := c.getLatestValue(usGAAP, "LongTermDebt")
 	shortTermDebt := c.getLatestValue(usGAAP, "ShortTermBorrowings")
@@ -185,11 +185,11 @@ func (c *EDGARClient) parseFinancialStatement(facts *edgarCompanyFacts) *finance
 	if statement.TotalDebt == 0 {
 		statement.TotalDebt = c.getLatestValue(usGAAP, "DebtCurrent")
 	}
-	
+
 	// Cash flow metrics
 	statement.OperatingCashFlow = c.getLatestValue(usGAAP, "NetCashProvidedByUsedInOperatingActivities")
 	statement.CapEx = c.getLatestValue(usGAAP, "PaymentsToAcquirePropertyPlantAndEquipment")
-	
+
 	// Calculate Free Cash Flow
 	if statement.OperatingCashFlow > 0 && statement.CapEx > 0 {
 		statement.FreeCashFlow = statement.OperatingCashFlow - statement.CapEx
@@ -265,19 +265,18 @@ func (c *EDGARClient) getLatestValue(facts map[string]edgarFact, factName string
 // Mock data for testing
 func (c *EDGARClient) getMockFinancials(ticker string) *finance.FinancialStatement {
 	return &finance.FinancialStatement{
-		Revenue:              394328000000,  // $394B
-		NetIncome:            96995000000,   // $97B
-		TotalAssets:          352755000000,  // $353B
-		TotalLiabilities:     290437000000,  // $290B
-		TotalDebt:            109280000000,  // $109B
-		ShareholdersEquity:   62318000000,   // $62B
-		OperatingCashFlow:    110543000000,  // $110B
-		CapEx:                10959000000,   // $11B
-		FreeCashFlow:         99584000000,   // $99.5B
-		Period:               "2024-FY",
-		FiscalYear:           2024,
-		ReportDate:           time.Date(2024, 9, 30, 0, 0, 0, 0, time.UTC),
-		FilingDate:           time.Date(2024, 11, 1, 0, 0, 0, 0, time.UTC),
+		Revenue:            394328000000, // $394B
+		NetIncome:          96995000000,  // $97B
+		TotalAssets:        352755000000, // $353B
+		TotalLiabilities:   290437000000, // $290B
+		TotalDebt:          109280000000, // $109B
+		ShareholdersEquity: 62318000000,  // $62B
+		OperatingCashFlow:  110543000000, // $110B
+		CapEx:              10959000000,  // $11B
+		FreeCashFlow:       99584000000,  // $99.5B
+		Period:             "2024-FY",
+		FiscalYear:         2024,
+		ReportDate:         time.Date(2024, 9, 30, 0, 0, 0, 0, time.UTC),
+		FilingDate:         time.Date(2024, 11, 1, 0, 0, 0, 0, time.UTC),
 	}
 }
-

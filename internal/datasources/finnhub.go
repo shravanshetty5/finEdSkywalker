@@ -36,35 +36,35 @@ type finnhubQuoteResponse struct {
 }
 
 type finnhubProfileResponse struct {
-	Country        string  `json:"country"`
-	Currency       string  `json:"currency"`
-	Exchange       string  `json:"exchange"`
-	Name           string  `json:"name"`
-	Ticker         string  `json:"ticker"`
-	MarketCap      float64 `json:"marketCapitalization"`
-	SharesOut      float64 `json:"shareOutstanding"`
-	Logo           string  `json:"logo"`
-	Phone          string  `json:"phone"`
-	WebURL         string  `json:"weburl"`
-	IPO            string  `json:"ipo"`
-	FinnhubIndustry string `json:"finnhubIndustry"`
+	Country         string  `json:"country"`
+	Currency        string  `json:"currency"`
+	Exchange        string  `json:"exchange"`
+	Name            string  `json:"name"`
+	Ticker          string  `json:"ticker"`
+	MarketCap       float64 `json:"marketCapitalization"`
+	SharesOut       float64 `json:"shareOutstanding"`
+	Logo            string  `json:"logo"`
+	Phone           string  `json:"phone"`
+	WebURL          string  `json:"weburl"`
+	IPO             string  `json:"ipo"`
+	FinnhubIndustry string  `json:"finnhubIndustry"`
 }
 
 type finnhubMetricResponse struct {
 	Metric struct {
-		PE10YearHigh      float64 `json:"10DayAverageTradingVolume"`
-		WeekHigh52        float64 `json:"52WeekHigh"`
-		WeekLow52         float64 `json:"52WeekLow"`
-		Beta              float64 `json:"beta"`
-		PERatio           float64 `json:"peBasicExclExtraTTM"`
-		PEForward         float64 `json:"peNormalizedAnnual"`
-		PEGRatio          float64 `json:"peTTM"`
-		DividendYield     float64 `json:"dividendYieldIndicatedAnnual"`
-		ROE               float64 `json:"roeTTM"`
-		ROA               float64 `json:"roaTTM"`
-		QuickRatio        float64 `json:"quickRatioAnnual"`
-		CurrentRatio      float64 `json:"currentRatioAnnual"`
-		DebtToEquity      float64 `json:"totalDebt/totalEquityAnnual"`
+		PE10YearHigh  float64 `json:"10DayAverageTradingVolume"`
+		WeekHigh52    float64 `json:"52WeekHigh"`
+		WeekLow52     float64 `json:"52WeekLow"`
+		Beta          float64 `json:"beta"`
+		PERatio       float64 `json:"peBasicExclExtraTTM"`
+		PEForward     float64 `json:"peNormalizedAnnual"`
+		PEGRatio      float64 `json:"peTTM"`
+		DividendYield float64 `json:"dividendYieldIndicatedAnnual"`
+		ROE           float64 `json:"roeTTM"`
+		ROA           float64 `json:"roaTTM"`
+		QuickRatio    float64 `json:"quickRatioAnnual"`
+		CurrentRatio  float64 `json:"currentRatioAnnual"`
+		DebtToEquity  float64 `json:"totalDebt/totalEquityAnnual"`
 	} `json:"metric"`
 }
 
@@ -92,7 +92,7 @@ func (c *FinnhubClient) GetQuote(ticker string) (*finance.StockQuote, error) {
 	params.Add("token", c.apiKey)
 
 	fullURL := fmt.Sprintf("%s?%s", endpoint, params.Encode())
-	
+
 	resp, err := c.httpClient.Get(fullURL)
 	if err != nil {
 		return nil, &finance.DataSourceError{
@@ -155,7 +155,7 @@ func (c *FinnhubClient) GetProfile(ticker string) (*finnhubProfileResponse, erro
 	params.Add("token", c.apiKey)
 
 	fullURL := fmt.Sprintf("%s?%s", endpoint, params.Encode())
-	
+
 	resp, err := c.httpClient.Get(fullURL)
 	if err != nil {
 		return nil, &finance.DataSourceError{
@@ -198,7 +198,7 @@ func (c *FinnhubClient) GetMetrics(ticker string) (*finnhubMetricResponse, error
 	params.Add("token", c.apiKey)
 
 	fullURL := fmt.Sprintf("%s?%s", endpoint, params.Encode())
-	
+
 	resp, err := c.httpClient.Get(fullURL)
 	if err != nil {
 		return nil, &finance.DataSourceError{
@@ -267,4 +267,3 @@ func (c *FinnhubClient) getMockMetrics(ticker string) *finnhubMetricResponse {
 	metrics.Metric.DebtToEquity = 0.85
 	return metrics
 }
-
