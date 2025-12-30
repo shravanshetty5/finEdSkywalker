@@ -2,17 +2,24 @@
 
 # Test script for stock analysis endpoints (with authentication)
 # Usage: ./scripts/test-stocks.sh [ticker] [api_url]
+#
+# Environment variables:
+#   TEST_USERNAME - Username for authentication (default: sshetty)
+#   TEST_PASSWORD - Password for authentication (required, or set USER_SSHETTY_PASSWORD)
 
 set -e
 
 TICKER=${1:-AAPL}
 API_URL=${2:-http://localhost:8080}
+USERNAME="${TEST_USERNAME:-sshetty}"
+PASSWORD="${TEST_PASSWORD:-${USER_SSHETTY_PASSWORD}}"
 
 echo "================================"
 echo "Stock Analysis API Test"
 echo "================================"
 echo "Ticker: $TICKER"
 echo "API URL: $API_URL"
+echo "Username: $USERNAME"
 echo ""
 
 # Color output
@@ -30,9 +37,17 @@ echo ""
 
 echo -e "${BLUE}2. Logging in to get JWT token${NC}"
 echo "POST $API_URL/auth/login"
+
+if [ -z "$PASSWORD" ]; then
+  echo -e "${RED}Error: No password provided${NC}"
+  echo "Set TEST_PASSWORD or USER_SSHETTY_PASSWORD environment variable"
+  echo "Example: TEST_PASSWORD=your_password ./scripts/test-stocks.sh"
+  exit 1
+fi
+
 LOGIN_RESPONSE=$(curl -s -X POST "$API_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}')
+  -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}")
 
 TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.token')
 
@@ -41,9 +56,7 @@ if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
   echo "Response: $LOGIN_RESPONSE"
   echo ""
   echo -e "${YELLOW}Make sure the user exists and password is correct${NC}"
-  echo "For local testing, the default user is:"
-  echo "  Username: sshetty"
-  echo "  Password: Utd@Pogba6"
+  echo "Set environment variables: TEST_USERNAME and TEST_PASSWORD"
   exit 1
 fi
 

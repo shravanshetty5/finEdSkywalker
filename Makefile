@@ -96,13 +96,20 @@ get-url: ## Get API Gateway URL
 curl-test: ## Run curl tests against local server
 	@echo "Testing local endpoints..."
 	@echo ""
-	@echo "1. Health check:"
-	curl -s http://localhost:8080/health | jq .
-	@echo ""
-	@echo "2. Login and get token:"
-	@TOKEN=$$(curl -s -X POST http://localhost:8080/auth/login \
+	@if [ -z "$$TEST_PASSWORD" ] && [ -z "$$USER_SSHETTY_PASSWORD" ]; then \
+		echo "Error: Set TEST_PASSWORD or USER_SSHETTY_PASSWORD environment variable"; \
+		echo "Example: TEST_PASSWORD=your_password make curl-test"; \
+		exit 1; \
+	fi
+	@USERNAME=$${TEST_USERNAME:-sshetty}; \
+	PASSWORD=$${TEST_PASSWORD:-$$USER_SSHETTY_PASSWORD}; \
+	echo "1. Health check:"; \
+	curl -s http://localhost:8080/health | jq .; \
+	echo ""; \
+	echo "2. Login and get token (user: $$USERNAME):"; \
+	TOKEN=$$(curl -s -X POST http://localhost:8080/auth/login \
 		-H "Content-Type: application/json" \
-		-d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token'); \
+		-d "{\"username\":\"$$USERNAME\",\"password\":\"$$PASSWORD\"}" | jq -r '.token'); \
 	echo "Token: $$TOKEN"; \
 	echo ""; \
 	echo "3. Stock fundamentals (AAPL):"; \
@@ -142,19 +149,26 @@ test-search-deployed: ## Run search tests against deployed API
 
 curl-test-deployed: ## Run curl tests against deployed API
 	@echo "Testing deployed endpoints..."
+	@if [ -z "$$TEST_PASSWORD" ] && [ -z "$$USER_SSHETTY_PASSWORD" ]; then \
+		echo "Error: Set TEST_PASSWORD or USER_SSHETTY_PASSWORD environment variable"; \
+		echo "Example: TEST_PASSWORD=your_password make curl-test-deployed"; \
+		exit 1; \
+	fi
 	@API_URL=$$(cd terraform && terraform output -raw api_gateway_url 2>/dev/null); \
 	if [ -z "$$API_URL" ]; then \
 		echo "Error: API URL not found. Run 'make deploy' first"; \
 		exit 1; \
 	fi; \
+	USERNAME=$${TEST_USERNAME:-sshetty}; \
+	PASSWORD=$${TEST_PASSWORD:-$$USER_SSHETTY_PASSWORD}; \
 	echo ""; \
 	echo "1. Health check:"; \
 	curl -s $$API_URL/health | jq .; \
 	echo ""; \
-	echo "2. Login:"; \
+	echo "2. Login (user: $$USERNAME):"; \
 	TOKEN=$$(curl -s -X POST $$API_URL/auth/login \
 		-H "Content-Type: application/json" \
-		-d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token'); \
+		-d "{\"username\":\"$$USERNAME\",\"password\":\"$$PASSWORD\"}" | jq -r '.token'); \
 	echo "Token obtained: $$TOKEN"; \
 	echo ""; \
 	echo "3. Stock fundamentals:"; \

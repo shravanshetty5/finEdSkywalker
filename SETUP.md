@@ -32,7 +32,7 @@ This is a **one-time setup** that creates the foundational resources.
 
 ## Step 2: Deploy Initial Infrastructure
 
-**Important:** You need to set API keys and secrets before deploying!
+**Important:** You need to set API keys, secrets, and user passwords before deploying!
 
 ```bash
 # 1. Generate a secure JWT secret
@@ -49,7 +49,12 @@ export FINNHUB_API_KEY="your_finnhub_api_key_here"
 # Use your actual email - SEC may contact you if there are issues
 export EDGAR_USER_AGENT="finEdSkywalker/1.0 (your-email@example.com)"
 
-# 4. Deploy with Terraform
+# 4. Set user passwords (required for authentication)
+export USER_SSHETTY_PASSWORD="your_secure_password"
+export USER_AJAIN_PASSWORD="your_secure_password"
+export USER_NSOUNDARARAJ_PASSWORD="your_secure_password"
+
+# 5. Deploy with Terraform
 cd terraform
 terraform init
 
@@ -57,6 +62,9 @@ terraform init
 export TF_VAR_jwt_secret="$JWT_SECRET"
 export TF_VAR_finnhub_api_key="$FINNHUB_API_KEY"
 export TF_VAR_edgar_user_agent="$EDGAR_USER_AGENT"
+export TF_VAR_user_sshetty_password="$USER_SSHETTY_PASSWORD"
+export TF_VAR_user_ajain_password="$USER_AJAIN_PASSWORD"
+export TF_VAR_user_nsoundararaj_password="$USER_NSOUNDARARAJ_PASSWORD"
 
 terraform plan
 terraform apply
@@ -71,7 +79,7 @@ export TF_VAR_use_mock_data="true"
 ```
 
 This creates:
-- Lambda function (with all environment variables)
+- Lambda function (with all environment variables including user passwords)
 - API Gateway
 - IAM roles
 - CloudWatch log groups
@@ -90,7 +98,7 @@ Add these secrets to your GitHub repository:
 
 1. Go to: `https://github.com/YOUR_ORG/finEdSkywalker/settings/secrets/actions`
 2. Click "New repository secret"
-3. Add **four secrets**:
+3. Add **two secrets**:
 
    **Secret 1: AWS_ROLE_ARN**
    - Name: `AWS_ROLE_ARN`
@@ -99,14 +107,9 @@ Add these secrets to your GitHub repository:
    **Secret 2: JWT_SECRET**
    - Name: `JWT_SECRET`
    - Value: (paste the JWT secret you generated in Step 2)
-   
-   **Secret 3: FINNHUB_API_KEY**
-   - Name: `FINNHUB_API_KEY`
-   - Value: (paste your Finnhub API key)
-   
-   **Secret 4: EDGAR_USER_AGENT**
-   - Name: `EDGAR_USER_AGENT`
-   - Value: `finEdSkywalker/1.0 (your-email@example.com)`
+
+**Note:** User passwords are configured via Terraform variables, not GitHub secrets.
+See [docs/USER_SETUP.md](docs/USER_SETUP.md) for user password management.
 
 That's it! No AWS access keys needed. ✨
 
@@ -127,6 +130,9 @@ For infrastructure changes, run Terraform locally:
 ```bash
 cd terraform
 export TF_VAR_jwt_secret="$JWT_SECRET"
+export TF_VAR_user_sshetty_password="$USER_SSHETTY_PASSWORD"
+export TF_VAR_user_ajain_password="$USER_AJAIN_PASSWORD"
+export TF_VAR_user_nsoundararaj_password="$USER_NSOUNDARARAJ_PASSWORD"
 terraform plan
 terraform apply
 ```
@@ -200,6 +206,11 @@ When you deploy:
 # Set JWT secret (required)
 export JWT_SECRET="test-secret-key-for-development"
 
+# Set user passwords (required for authentication)
+export USER_SSHETTY_PASSWORD="dev_password"
+export USER_AJAIN_PASSWORD="dev_password"
+export USER_NSOUNDARARAJ_PASSWORD="dev_password"
+
 # Start server
 make run-local
 
@@ -209,7 +220,7 @@ curl http://localhost:8080/health
 # Test login
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}'
+  -d '{"username":"sshetty","password":"dev_password"}'
 ```
 
 ### Test Suite
@@ -249,6 +260,9 @@ For infrastructure changes:
 ```bash
 cd terraform
 export TF_VAR_jwt_secret="$JWT_SECRET"
+export TF_VAR_user_sshetty_password="$USER_SSHETTY_PASSWORD"
+export TF_VAR_user_ajain_password="$USER_AJAIN_PASSWORD"
+export TF_VAR_user_nsoundararaj_password="$USER_NSOUNDARARAJ_PASSWORD"
 terraform apply
 ```
 
@@ -299,13 +313,15 @@ terraform init
 
 ✅ **Additional recommendations:**
 - Store JWT_SECRET in AWS Secrets Manager (more secure than env vars)
+- Store user passwords in AWS Systems Manager Parameter Store
 - Enable AWS CloudTrail
 - Set up AWS GuardDuty
 - Use separate AWS accounts for dev/staging/prod
 - Implement branch protection rules
 - Require PR approvals for Terraform changes
 - Rotate JWT secrets periodically
-- Change default user passwords
+- Rotate user passwords every 90 days
+- Use strong, unique passwords for each environment
 
 ## Cost Estimate
 
@@ -323,11 +339,11 @@ terraform init
 ## Next Steps
 
 1. Set up monitoring with CloudWatch dashboards
-2. Configure user management (add/remove users via hashgen tool)
-3. Set up multiple environments (dev, staging, prod) with different JWT secrets
+2. Configure user password rotation schedule (every 90 days recommended)
+3. Set up multiple environments (dev, staging, prod) with different passwords
 4. Add integration tests to the pipeline
-5. Configure alerts for errors
-6. Upgrade to AWS Secrets Manager for JWT_SECRET
+5. Configure alerts for errors and failed login attempts
+6. Upgrade to AWS Secrets Manager for JWT_SECRET and user passwords
 7. Implement role-based access control (RBAC)
 8. Add rate limiting for authentication endpoints
 
@@ -338,4 +354,5 @@ terraform init
 - [GitHub Actions Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
 - [JWT Best Practices](https://tools.ietf.org/html/rfc8725)
 - [Authentication Guide](docs/AUTHENTICATION.md)
+- [User Setup Guide](docs/USER_SETUP.md) - **User password management**
 

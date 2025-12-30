@@ -84,6 +84,27 @@ variable "use_mock_data" {
   default     = "false"
 }
 
+variable "user_sshetty_password" {
+  description = "Password for sshetty user (set via TF_VAR_user_sshetty_password environment variable)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "user_ajain_password" {
+  description = "Password for ajain user (set via TF_VAR_user_ajain_password environment variable)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "user_nsoundararaj_password" {
+  description = "Password for nsoundararaj user (set via TF_VAR_user_nsoundararaj_password environment variable)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "api_throttle_burst_limit" {
   description = "Maximum concurrent requests allowed (burst)"
   type        = number

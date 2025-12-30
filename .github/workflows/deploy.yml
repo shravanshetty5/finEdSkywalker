@@ -162,10 +162,29 @@ jobs:
             --query 'Environment.Variables' \
             --output json)
           
+          echo "Checking environment variables..."
           if echo "$ENV_VARS" | grep -q "JWT_SECRET"; then
             echo "✅ JWT_SECRET is configured"
           else
             echo "⚠️ Warning: JWT_SECRET not found in Lambda environment variables"
+          fi
+          
+          if echo "$ENV_VARS" | grep -q "USER_SSHETTY_PASSWORD"; then
+            echo "✅ USER_SSHETTY_PASSWORD is configured"
+          else
+            echo "⚠️ Warning: USER_SSHETTY_PASSWORD not found - users may not be able to login"
+          fi
+          
+          if echo "$ENV_VARS" | grep -q "USER_AJAIN_PASSWORD"; then
+            echo "✅ USER_AJAIN_PASSWORD is configured"
+          else
+            echo "⚠️ Warning: USER_AJAIN_PASSWORD not found - user may not be able to login"
+          fi
+          
+          if echo "$ENV_VARS" | grep -q "USER_NSOUNDARARAJ_PASSWORD"; then
+            echo "✅ USER_NSOUNDARARAJ_PASSWORD is configured"
+          else
+            echo "⚠️ Warning: USER_NSOUNDARARAJ_PASSWORD not found - user may not be able to login"
           fi
 
       - name: Get and Test API

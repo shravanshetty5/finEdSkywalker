@@ -3,6 +3,8 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"log"
+	"os"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -34,22 +36,29 @@ func NewUserStore() *UserStore {
 }
 
 // InitializeDefaultUsers adds default users to the store
-// In production, this would load from a database or environment variables
+// Passwords are loaded from environment variables for security
 func (s *UserStore) InitializeDefaultUsers() error {
-	// Default users for development/testing
-	// Passwords: "password123" for all users
+	// Default users - passwords must be set via environment variables
+	// Set USER_SSHETTY_PASSWORD, USER_AJAIN_PASSWORD, USER_NSOUNDARARAJ_PASSWORD
 	defaultUsers := []struct {
 		id       string
 		username string
-		password string
+		envVar   string
 	}{
-		{"1", "sshetty", "Utd@Pogba6"},
-		{"2", "ajain", "acdc@mumbai1"},
-		{"3", "nsoundararaj", "ishva@coimbatore1"},
+		{"1", "sshetty", "USER_SSHETTY_PASSWORD"},
+		{"2", "ajain", "USER_AJAIN_PASSWORD"},
+		{"3", "nsoundararaj", "USER_NSOUNDARARAJ_PASSWORD"},
 	}
 
+	usersAdded := 0
 	for _, u := range defaultUsers {
-		hashedPassword, err := HashPassword(u.password)
+		password := os.Getenv(u.envVar)
+		if password == "" {
+			log.Printf("Warning: %s not set, skipping user %s", u.envVar, u.username)
+			continue
+		}
+
+		hashedPassword, err := HashPassword(password)
 		if err != nil {
 			return fmt.Errorf("failed to hash password for user %s: %w", u.username, err)
 		}
@@ -59,6 +68,13 @@ func (s *UserStore) InitializeDefaultUsers() error {
 			Username:     u.username,
 			PasswordHash: hashedPassword,
 		}
+		usersAdded++
+	}
+
+	if usersAdded == 0 {
+		log.Printf("Warning: No default users were created. Set environment variables (USER_SSHETTY_PASSWORD, USER_AJAIN_PASSWORD, USER_NSOUNDARARAJ_PASSWORD) to create users.")
+	} else {
+		log.Printf("Initialized %d default user(s)", usersAdded)
 	}
 
 	return nil

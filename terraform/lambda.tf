@@ -73,11 +73,14 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      ENVIRONMENT        = var.environment
-      JWT_SECRET         = var.jwt_secret
-      FINNHUB_API_KEY    = var.finnhub_api_key
-      EDGAR_USER_AGENT   = var.edgar_user_agent
-      USE_MOCK_DATA      = var.use_mock_data
+      ENVIRONMENT                = var.environment
+      JWT_SECRET                 = var.jwt_secret
+      FINNHUB_API_KEY            = var.finnhub_api_key
+      EDGAR_USER_AGENT           = var.edgar_user_agent
+      USE_MOCK_DATA              = var.use_mock_data
+      USER_SSHETTY_PASSWORD      = var.user_sshetty_password
+      USER_AJAIN_PASSWORD        = var.user_ajain_password
+      USER_NSOUNDARARAJ_PASSWORD = var.user_nsoundararaj_password
     }
   }
 

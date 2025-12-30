@@ -2,6 +2,8 @@
 
 A comprehensive stock analysis platform providing fundamental analysis, DCF valuation, and investment insights through a serverless Go API on AWS Lambda.
 
+> **🔒 Security Notice:** User passwords are managed via environment variables. Never commit passwords to version control. See [docs/USER_SETUP.md](docs/USER_SETUP.md) for secure setup instructions.
+
 ## Features
 
 ### Stock Analysis
@@ -87,16 +89,19 @@ export JWT_SECRET="test-secret-key-for-development-only"
 export FINNHUB_API_KEY="your_finnhub_api_key"  # Get free key at finnhub.io
 export EDGAR_USER_AGENT="finEdSkywalker/1.0 (your-email@example.com)"
 
+# Set user passwords (required for authentication)
+export USER_SSHETTY_PASSWORD="your_secure_password"
+export USER_AJAIN_PASSWORD="your_secure_password"
+export USER_NSOUNDARARAJ_PASSWORD="your_secure_password"
+
 # Or use mock data mode (no API keys required)
 export USE_MOCK_DATA=true
 
 # Start local server
 make run-local
 
-# Test stock analysis endpoints
-curl http://localhost:8080/api/stocks/AAPL/fundamentals
-curl http://localhost:8080/api/stocks/AAPL/valuation
-curl http://localhost:8080/api/stocks/AAPL/metrics
+# Test stock analysis endpoints (requires authentication)
+# See docs/USER_SETUP.md for authentication setup
 ```
 
 ### Production Deployment
@@ -112,22 +117,30 @@ See **[SETUP.md](SETUP.md)** for complete production setup with:
 # 1. Bootstrap AWS infrastructure (one-time)
 ./scripts/bootstrap.sh
 
-# 2. Generate JWT secret
+# 2. Generate secrets and set user passwords
 export JWT_SECRET=$(openssl rand -base64 32)
+export USER_SSHETTY_PASSWORD="your_secure_password"
+export USER_AJAIN_PASSWORD="your_secure_password"
+export USER_NSOUNDARARAJ_PASSWORD="your_secure_password"
 
 # 3. Deploy infrastructure
 cd terraform
 terraform init
 export TF_VAR_jwt_secret="$JWT_SECRET"
+export TF_VAR_user_sshetty_password="$USER_SSHETTY_PASSWORD"
+export TF_VAR_user_ajain_password="$USER_AJAIN_PASSWORD"
+export TF_VAR_user_nsoundararaj_password="$USER_NSOUNDARARAJ_PASSWORD"
 terraform apply
 
-# 4. Configure GitHub secrets
+# 4. Configure GitHub secrets (optional for CI/CD)
 # Add AWS_ROLE_ARN from terraform output
-# Add JWT_SECRET as a secret
+# Note: User passwords are set via Terraform, not GitHub secrets
 
 # 5. Push to master - automatic deployment!
 git push origin master
 ```
+
+**Important:** User passwords are managed via Terraform variables. See [docs/USER_SETUP.md](docs/USER_SETUP.md) for details.
 
 ## Available Endpoints
 
@@ -165,7 +178,7 @@ git push origin master
 # First, login to get JWT token
 TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+  -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 
 # Get fundamental scorecard for Apple
 curl -H "Authorization: Bearer $TOKEN" \
@@ -296,14 +309,14 @@ func handleListUsersAuth(request events.APIGatewayProxyRequest, authCtx *auth.Au
 ```bash
 curl -X POST https://your-api.execute-api.us-east-1.amazonaws.com/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}'
+  -d '{"username":"your_username","password":"your_password"}'
 ```
 
 Response:
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "username": "sshetty",
+  "username": "your_username",
   "message": "Login successful"
 }
 ```
@@ -316,7 +329,15 @@ curl https://your-api.execute-api.us-east-1.amazonaws.com/api/items \
 
 ### Managing Users
 
-Generate password hashes for new users:
+**Important:** User passwords are now managed via environment variables for security.
+
+See **[docs/USER_SETUP.md](docs/USER_SETUP.md)** for complete guide on:
+- Setting up user passwords securely
+- Using environment variables
+- Password rotation
+- Adding new users
+
+Generate password hashes when needed:
 
 ```bash
 # Build the tool
@@ -326,16 +347,12 @@ go build -o bin/hashgen ./cmd/hashgen/main.go
 ./bin/hashgen
 ```
 
-Add the generated hash to `internal/auth/users.go`.
-
 ### Full Documentation
 
-See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for:
-- Complete authentication guide
-- Security best practices
-- Token management
-- Error handling
-- Production deployment
+Authentication and Security:
+- **[docs/USER_SETUP.md](docs/USER_SETUP.md)** - User setup and password management
+- **[docs/AUTHENTICATION.md](docs/AUTHENTICATION.md)** - JWT authentication guide
+- **[docs/SECURITY.md](docs/SECURITY.md)** - Rate limiting and API security
 
 ## CI/CD with GitHub Actions
 

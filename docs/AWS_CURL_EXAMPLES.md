@@ -68,7 +68,7 @@ curl -s "$API_URL/health" | jq
 ```bash
 curl -X POST "$API_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq
+  -d '{"username":"your_username","password":"your_password"}' | jq
 ```
 
 **Expected Response:**
@@ -84,7 +84,7 @@ curl -X POST "$API_URL/auth/login" \
 ```bash
 export TOKEN=$(curl -s -X POST "$API_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+  -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 
 echo "Token: $TOKEN"
 ```
@@ -192,7 +192,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 #!/bin/bash
 export TOKEN=$(curl -s -X POST "$API_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+  -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 
 echo "Stock Analysis Summary"
 echo "====================="
@@ -223,7 +223,7 @@ done
 #!/bin/bash
 export TOKEN=$(curl -s -X POST "$API_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+  -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 
 printf "%-8s %-12s %-10s %-10s %-10s\n" "Ticker" "Price" "P/E" "ROE" "Upside"
 printf "%-8s %-12s %-10s %-10s %-10s\n" "------" "-----" "---" "---" "------"
@@ -302,7 +302,7 @@ curl -w "\nTime total: %{time_total}s\nTime connect: %{time_connect}s\nTime star
 ```bash
 # Set once
 API_URL="https://your-api.execute-api.us-east-1.amazonaws.com"
-TOKEN=$(curl -s -X POST "$API_URL/auth/login" -H "Content-Type: application/json" -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+TOKEN=$(curl -s -X POST "$API_URL/auth/login" -H "Content-Type: application/json" -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 
 # Then use for any stock
 curl -s -H "Authorization: Bearer $TOKEN" "$API_URL/api/stocks/AAPL/metrics" | jq '{ticker, price: .current_price, summary: .fundamental_scorecard.summary, upside: .valuation.upside_percent}'
@@ -351,7 +351,7 @@ done
 #!/bin/bash
 export TOKEN=$(curl -s -X POST "$API_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+  -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 
 # Header
 echo "Ticker,Price,PE,Debt/Equity,FCF_Yield,ROE,Fair_Value,Upside%" > stock_report.csv
@@ -385,7 +385,7 @@ terraform output api_gateway_url
 # Tokens expire after 1 hour, get a new one
 export TOKEN=$(curl -s -X POST "$API_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+  -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 ```
 
 ### Check CloudWatch Logs

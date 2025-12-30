@@ -2,6 +2,12 @@
 
 # Test AWS Stock Analysis API Endpoints
 # This script tests the deployed Lambda function via API Gateway
+#
+# Environment variables:
+#   SKYWALKER_API_URL - API Gateway URL
+#   TEST_USERNAME - Username for authentication (default: sshetty)
+#   TEST_PASSWORD - Password for authentication (required, or set USER_SSHETTY_PASSWORD)
+#   TICKER - Stock ticker to test (default: AAPL)
 
 set -e
 
@@ -35,7 +41,7 @@ if [ -z "$API_URL" ]; then
   echo "   $0 https://abc123.execute-api.us-east-1.amazonaws.com"
   echo ""
   echo "2. As an environment variable:"
-  echo "   export API_GATEWAY_URL=https://abc123.execute-api.us-east-1.amazonaws.com"
+  echo "   export SKYWALKER_API_URL=https://abc123.execute-api.us-east-1.amazonaws.com"
   echo "   $0"
   echo ""
   echo "3. Deploy infrastructure so Terraform has the URL:"
@@ -46,15 +52,16 @@ if [ -z "$API_URL" ]; then
   exit 1
 fi
 
-# Default credentials (update these if different)
-USERNAME="${AWS_USERNAME:-sshetty}"
-PASSWORD="${AWS_PASSWORD:-Utd@Pogba6}"
+# Default credentials from environment variables
+USERNAME="${TEST_USERNAME:-sshetty}"
+PASSWORD="${TEST_PASSWORD:-${USER_SSHETTY_PASSWORD}}"
 TICKER="${TICKER:-AAPL}"
 
 echo "================================"
 echo "AWS Stock Analysis API Test"
 echo "================================"
 echo "API URL: $API_URL"
+echo "Username: $USERNAME"
 echo "Ticker: $TICKER"
 echo ""
 
@@ -70,6 +77,14 @@ echo ""
 echo -e "${BLUE}2. Logging in to get JWT token${NC}"
 echo "POST $API_URL/auth/login"
 echo ""
+
+if [ -z "$PASSWORD" ]; then
+  echo -e "${RED}Error: No password provided${NC}"
+  echo "Set TEST_PASSWORD or USER_SSHETTY_PASSWORD environment variable"
+  echo "Example: TEST_PASSWORD=your_password ./scripts/test-aws-stocks.sh https://your-api-url"
+  exit 1
+fi
+
 LOGIN_RESPONSE=$(curl -s -X POST "$API_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}")

@@ -12,7 +12,7 @@ All stock analysis endpoints require a JWT token. First, login to obtain a token
 ```bash
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}'
+  -d '{"username":"your_username","password":"your_password"}'
 ```
 
 **Login Response:**
@@ -378,7 +378,7 @@ make run-local
 # In another terminal, login first
 TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+  -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 
 # Then test with mock data
 curl -H "Authorization: Bearer $TOKEN" \
@@ -400,7 +400,7 @@ Mock data will be returned with realistic values, useful for:
 # Step 1: Login
 TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+  -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 
 # Step 2: Check if fundamentals are strong
 curl -s -H "Authorization: Bearer $TOKEN" \
@@ -444,7 +444,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 # Login once
 TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"sshetty","password":"Utd@Pogba6"}' | jq -r '.token')
+  -d '{"username":"your_username","password":"your_password"}' | jq -r '.token')
 
 # Analyze multiple stocks
 for ticker in AAPL MSFT GOOGL AMZN; do
