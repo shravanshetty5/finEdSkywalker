@@ -31,6 +31,11 @@ func Handler(request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPRes
 	path := request.RawPath
 	method := request.RequestContext.HTTP.Method
 
+	// Handle OPTIONS preflight requests for CORS
+	if method == "OPTIONS" {
+		return corsPreflightResponse()
+	}
+
 	// Route based on path and method
 	switch {
 	// Public routes (no authentication required)
@@ -110,4 +115,18 @@ func errorResponse(statusCode int, message string, details string) (events.APIGa
 // notFound returns a 404 response
 func notFound() (events.APIGatewayV2HTTPResponse, error) {
 	return errorResponse(404, "Not found", "The requested resource was not found")
+}
+
+// corsPreflightResponse handles OPTIONS preflight requests
+func corsPreflightResponse() (events.APIGatewayV2HTTPResponse, error) {
+	return events.APIGatewayV2HTTPResponse{
+		StatusCode: 200,
+		Headers: map[string]string{
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+			"Access-Control-Max-Age":       "3600",
+		},
+		Body: "",
+	}, nil
 }
